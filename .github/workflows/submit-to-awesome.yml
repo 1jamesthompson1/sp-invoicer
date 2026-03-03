@@ -1,8 +1,6 @@
 name: Submit Plugin to awesome-super-productivity
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
