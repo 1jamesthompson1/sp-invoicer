@@ -1,16 +1,34 @@
 # Invoice maker plugin for Super Productivity
 
-[Latest Release](https://github.com/1jamesthompson1/sp-invoicer/releases/latest) · [All Releases](https://github.com/1jamesthompson1/sp-invoicer/releases)
+[All Releases](https://github.com/1jamesthompson1/sp-invoicer/releases)
 
-[![Latest release](https://img.shields.io/github/v/release/1jamesthompson1/sp-invoicer?display_name=tag)](https://github.com/1jamesthompson1/sp-invoicer/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/1jamesthompson1/sp-invoicer)](https://github.com/1jamesthompson1/sp-invoicer/releases/latest)
 
+[![Invoice maker plugin screenshot](assets/example-screenshot.png)](assets/example.pdf)
+
+> **⚠️ Early Development Warning**  
+> This plugin is in early stages of development. **Always back up your Super Productivity data** before installing or updating this plugin. While the plugin syncs data across devices, we recommend regular exports of your client/invoice data until the plugin reaches a stable release.
+
+## Features
+
+- Generate client invoices from tracked time in Super Productivity
+- Assign projects to clients with custom hourly rates and tax settings
+- Flexible billing periods: week, month, year, custom date range
+- Three itemization levels:
+  - Project totals only
+  - Main task breakdown
+  - Nested parent/subtask hierarchy
+- Tasks with identical names are automatically merged
+- Export invoices as PDF
+- Store invoice metadata (number, date, total, period) for reference
+- Sync invoice details, client data, and project assignments across devices
 
 ## Get Started
 
 ### 1) Install the plugin
 
 #### Option A: Install from a built ZIP
-1. Download or build the plugin ZIP (`invoice-maker-vX.Y.Z.zip`).
+1. Download the [latest Release](https://github.com/1jamesthompson1/sp-invoicer/releases/latest) or build the plugin ZIP (`invoice-maker-vX.Y.Z.zip`).
 2. In Super Productivity, open the plugin manager.
 3. Choose install/load plugin from file.
 4. Select the ZIP and enable the plugin.
@@ -98,22 +116,23 @@ This repo includes a GitHub Actions workflow at [.github/workflows/release.yml](
 What it does:
 - Triggers when you push a version tag like `v0.0.2`
 - Runs `npm run build`
-- Creates/updates a GitHub Release for that tag
-- Uploads `dist/invoice-maker-vX.Y.Z.zip` as a release asset
+- Extracts release notes from `CHANGELOG.md`
+- Creates a GitHub Release for that tag
+- Publishes the release notes and uploads `dist/invoice-maker-vX.Y.Z.zip` as a release asset
 
 How to publish a release:
-1. Bump version in `package.json` (or run `npm version patch|minor|major`).
+1. Run `npm version patch` (or `minor`/`major`) - this creates a single commit with version, manifest, and changelog updates
 2. Push commit and tag:
 
 ```bash
 git push origin main --follow-tags
 ```
 
-3. Open the GitHub Releases page and you will see the ZIP attached to the new release.
+3. GitHub Actions automatically creates the release with the changelog notes and ZIP attachment.
 
 Notes:
-- Tag format should be `v*.*.*` (example: `v1.2.3`).
-- The ZIP filename uses the version from `package.json`.
+- `CHANGELOG.md` is automatically updated during `npm version` from your commit history
+- Tag format must be `v*.*.*` (example: `v1.2.3`)
 
 ### Testing
 
@@ -125,15 +144,22 @@ To test the plugin in Super Productivity:
 
 ### Versioning
 
-Version numbers are automatically synced between `package.json` and `plugin/manifest.json` during the build process. 
+Version numbers are automatically synced between `package.json` and `plugin/manifest.json`. 
 
-**To update the version:**
+**To create a new version and release:**
 
-1. Only update the version in `package.json` (or use `npm version patch|minor|major`)
-2. Run `npm run build`
-3. The build script will automatically sync the version to `plugin/manifest.json`
+1. Run `npm version patch` (or `minor`/`major`)
+   - Updates `package.json` version
+   - Syncs to `plugin/manifest.json`
+   - Generates changelog entry in `CHANGELOG.md`
+   - Creates a single git commit with all changes
+   - Creates a version tag
+2. Run `git push origin main --follow-tags`
+   - Pushes code and tag to GitHub
+   - Triggers the release workflow
+   - Builds and publishes the ZIP with changelog notes
 
-The build script also syncs description, author, and homepage fields from `package.json` to `manifest.json`, keeping everything consistent.
+The `npm version` command includes lifecycle hooks that automatically sync manifest.json and update CHANGELOG.md before creating the version commit, so everything stays in sync with a single commit per release.
 
 ### Pull Requests
 

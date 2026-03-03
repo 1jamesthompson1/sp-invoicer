@@ -4,6 +4,7 @@ const { execSync } = require('child_process');
 
 const rootDir = __dirname;
 const srcDir = path.join(rootDir, 'plugin');
+const syncOnly = process.argv.includes('--sync-only');
 
 // Sync metadata from package.json to manifest.json
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
@@ -34,6 +35,11 @@ if (manifest.homepage !== packageJson.homepage) {
 if (manifestUpdated) {
   fs.writeFileSync(path.join(srcDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', 'utf8');
   console.log('Updated manifest.json with package.json metadata');
+}
+
+if (syncOnly) {
+  console.log('Sync complete (--sync-only mode)');
+  process.exit(0);
 }
 
 function readSrc(fileName) {

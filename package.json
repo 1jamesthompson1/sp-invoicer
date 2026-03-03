@@ -5,7 +5,8 @@
   "author": "James Thompson",
   "homepage": "https://github.com/1jamesthompson1/sp-invoicer",
   "scripts": {
-    "build": "node build.js"
+    "build": "node build.js",
+    "version": "node build.js --sync-only && node scripts/update-changelog.js && git add plugin/manifest.json CHANGELOG.md"
   },
   "keywords": [
     "super-productivity",
