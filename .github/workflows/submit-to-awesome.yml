@@ -1,0 +1,80 @@
+name: Submit Plugin to awesome-super-productivity
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  submit-to-awesome:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Fork and clone awesome-super-productivity
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          # Fork the repo (no-op if fork already exists)
+          gh repo fork super-productivity/awesome-super-productivity --clone=true --default-branch-only
+          cd awesome-super-productivity
+          git remote add upstream https://github.com/super-productivity/awesome-super-productivity.git
+          git fetch upstream
+          git reset --hard upstream/main
+
+      - name: Add plugin entry if not already present
+        id: add_entry
+        run: |
+          cd awesome-super-productivity
+          ENTRY="- [Invoicer](https://github.com/1jamesthompson1/sp-invoicer) - Generate client invoices from tracked time in Super Productivity, with flexible billing periods, itemization levels, and PDF export."
+          if grep -qF "1jamesthompson1/sp-invoicer" README.md; then
+            echo "Entry already exists in README.md – skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            # Insert the new entry at the end of the Plugins section (before Articles & Reviews)
+            python3 - <<'EOF'
+          import re, pathlib
+          path = pathlib.Path("README.md")
+          content = path.read_text()
+          entry = "- [Invoicer](https://github.com/1jamesthompson1/sp-invoicer) - Generate client invoices from tracked time in Super Productivity, with flexible billing periods, itemization levels, and PDF export."
+          # Insert at the end of the Plugins section, preserving the blank line before the next section
+          updated = re.sub(r'\n+(?=## Articles & Reviews)', r'\n' + entry + r'\n\n', content, count=1)
+          path.write_text(updated)
+          EOF
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create branch, commit, and open PR
+        if: steps.add_entry.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          cd awesome-super-productivity
+          BRANCH="add-sp-invoicer-plugin"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add README.md
+          git commit -m "feat: add Invoicer plugin by 1jamesthompson1"
+          git push origin "$BRANCH" --force
+          gh pr create \
+            --repo super-productivity/awesome-super-productivity \
+            --base main \
+            --title "Add Invoicer plugin" \
+            --body "## Description
+
+This PR adds the [Invoicer](https://github.com/1jamesthompson1/sp-invoicer) plugin to the Plugins section.
+
+### What does the plugin do?
+
+- Generate client invoices from tracked time in Super Productivity
+- Assign projects to clients with custom hourly rates and tax settings
+- Flexible billing periods: week, month, year, or custom date range
+- Three itemization levels (project totals, main tasks, nested subtasks)
+- Export invoices as PDF
+- Sync invoice details across devices
+
+### Links
+
+- Repository: https://github.com/1jamesthompson1/sp-invoicer
+- Latest release: https://github.com/1jamesthompson1/sp-invoicer/releases/latest" \
+          || echo "PR already exists or creation skipped."
