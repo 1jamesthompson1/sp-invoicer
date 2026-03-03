@@ -545,6 +545,187 @@
         return div.innerHTML;
       }
 
+      function parseDateKeyAsLocalDate(dateKey) {
+        const parts = dateKey.split('-').map(Number);
+        if (parts.length !== 3 || parts.some(Number.isNaN)) {
+          return null;
+        }
+        const [year, month, day] = parts;
+        return new Date(year, month - 1, day, 12, 0, 0, 0);
+      }
+
+      function getTaskHoursInRange(task, cutoffDate, endDate) {
+        if (task.timeSpentOnDay && typeof task.timeSpentOnDay === 'object') {
+          const msInRange = Object.entries(task.timeSpentOnDay).reduce((sum, [dateKey, ms]) => {
+            if (typeof ms !== 'number' || ms <= 0) {
+              return sum;
+            }
+
+            const localDate = parseDateKeyAsLocalDate(dateKey);
+            if (!localDate) {
+              return sum;
+            }
+
+            if (localDate >= cutoffDate && localDate <= endDate) {
+              return sum + ms;
+            }
+
+            return sum;
+          }, 0);
+
+          return msInRange / (1000 * 60 * 60);
+        }
+
+        if (!task.parentId && task.timeSpent && task.timeSpent > 0) {
+          const taskDate = new Date(task.changed || task.created);
+          if (taskDate >= cutoffDate && taskDate <= endDate) {
+            return task.timeSpent / (1000 * 60 * 60);
+          }
+        }
+
+        return 0;
+      }
+
+      function getTopLevelTask(taskId, allTasksById) {
+        let currentTask = allTasksById[taskId];
+        while (currentTask && currentTask.parentId && allTasksById[currentTask.parentId]) {
+          currentTask = allTasksById[currentTask.parentId];
+        }
+        return currentTask || null;
+      }
+
+      function normalizeTaskTitle(title) {
+        return (title || '').trim().toLowerCase();
+      }
+
+      function mergeSiblingNodesByTitle(nodes) {
+        const mergedByTitle = {};
+
+        nodes.forEach(node => {
+          const normalizedTitle = normalizeTaskTitle(node.title);
+          const key = normalizedTitle || `__task-${node.id}`;
+
+          if (!mergedByTitle[key]) {
+            mergedByTitle[key] = {
+              ...node,
+              children: [...node.children]
+            };
+            return;
+          }
+
+          mergedByTitle[key].hours += node.hours;
+          mergedByTitle[key].children.push(...node.children);
+        });
+
+        return Object.values(mergedByTitle).map(node => ({
+          ...node,
+          children: mergeSiblingNodesByTitle(node.children)
+        }));
+      }
+
+      function renderNestedTaskNode(node, depth) {
+        const paddingLeft = 20 + (depth * 18);
+        const hasChildren = node.children && node.children.length > 0;
+        const label = hasChildren
+          ? `${escapeHtml(node.title)} (Task total: ${node.hours.toFixed(2)}h)`
+          : `${escapeHtml(node.title)} (${node.hours.toFixed(2)}h)`;
+        let html = `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: ${paddingLeft}px;">• ${label}</div>`;
+
+        node.children
+          .sort((a, b) => b.hours - a.hours)
+          .forEach(child => {
+            html += renderNestedTaskNode(child, depth + 1);
+          });
+
+        return html;
+      }
+
+      function buildProjectTaskDetailsHtml(projectTasksForProject, allTasksById, itemizationLevel) {
+        if (!projectTasksForProject || projectTasksForProject.length === 0 || itemizationLevel === 1) {
+          return '';
+        }
+
+        if (itemizationLevel === 2) {
+          const mainTaskBuckets = {};
+
+          projectTasksForProject.forEach(taskEntry => {
+            const topTask = getTopLevelTask(taskEntry.id, allTasksById);
+            if (!topTask) {
+              return;
+            }
+
+            const normalizedTitle = normalizeTaskTitle(topTask.title);
+            const bucketKey = normalizedTitle || `__task-${topTask.id}`;
+
+            if (!mainTaskBuckets[bucketKey]) {
+              mainTaskBuckets[bucketKey] = {
+                title: topTask.title,
+                hours: 0
+              };
+            }
+
+            mainTaskBuckets[bucketKey].hours += taskEntry.hours;
+          });
+
+          return Object.values(mainTaskBuckets)
+            .sort((a, b) => b.hours - a.hours)
+            .map(task => `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: 20px;">• ${escapeHtml(task.title)} (${task.hours.toFixed(2)}h)</div>`)
+            .join('\n');
+        }
+
+        const nodeMap = {};
+
+        const ensureNode = (taskId) => {
+          if (!taskId || nodeMap[taskId]) {
+            return nodeMap[taskId] || null;
+          }
+
+          const task = allTasksById[taskId];
+          if (!task) {
+            return null;
+          }
+
+          nodeMap[taskId] = {
+            id: task.id,
+            title: task.title,
+            parentId: task.parentId || null,
+            hours: 0,
+            children: []
+          };
+
+          return nodeMap[taskId];
+        };
+
+        projectTasksForProject.forEach(taskEntry => {
+          let currentTask = allTasksById[taskEntry.id];
+          while (currentTask) {
+            const node = ensureNode(currentTask.id);
+            if (node) {
+              node.hours += taskEntry.hours;
+            }
+            if (!currentTask.parentId || !allTasksById[currentTask.parentId]) {
+              break;
+            }
+            currentTask = allTasksById[currentTask.parentId];
+          }
+        });
+
+        Object.values(nodeMap).forEach(node => {
+          if (node.parentId && nodeMap[node.parentId]) {
+            nodeMap[node.parentId].children.push(node);
+          }
+        });
+
+        const rootNodes = Object.values(nodeMap)
+          .filter(node => !node.parentId || !nodeMap[node.parentId])
+          .sort((a, b) => b.hours - a.hours);
+
+        const mergedRootNodes = mergeSiblingNodesByTitle(rootNodes)
+          .sort((a, b) => b.hours - a.hours);
+
+        return mergedRootNodes.map(root => renderNestedTaskNode(root, 0)).join('\n');
+      }
+
       // Update generate client select
       function updateGenerateClientSelect() {
         const select = document.getElementById('gen-client-select');
@@ -610,6 +791,15 @@
           const tasks = await PluginAPI.getTasks();
           const archivedTasks = await PluginAPI.getArchivedTasks();
           const allTasks = [...tasks, ...archivedTasks];
+          const allTasksById = allTasks.reduce((acc, task) => {
+            acc[task.id] = task;
+            return acc;
+          }, {});
+          const parentTaskIdsWithChildren = new Set(
+            allTasks
+              .filter(task => !!task.parentId)
+              .map(task => task.parentId)
+          );
 
           // Calculate cutoff date
           let cutoffDate = new Date();
@@ -680,24 +870,32 @@
           const projectTasks = {};
 
           allTasks.forEach(task => {
-            // Only include parent tasks (tasks without parentId) to avoid double-counting
-            if (task.timeSpent && task.timeSpent > 0 && !task.parentId && clientProjects.includes(task.projectId)) {
-              const taskDate = new Date(task.changed || task.created);
-              if (taskDate >= cutoffDate && taskDate <= endDate) {
-                const hours = task.timeSpent / (1000 * 60 * 60);
-                if (!projectHours[task.projectId]) {
-                  projectHours[task.projectId] = 0;
-                  projectTasks[task.projectId] = [];
-                }
-                projectHours[task.projectId] += hours;
-                
-                projectTasks[task.projectId].push({
-                  id: task.id,
-                  title: task.title,
-                  hours: hours
-                });
-              }
+            if (!clientProjects.includes(task.projectId)) {
+              return;
             }
+
+            if (parentTaskIdsWithChildren.has(task.id)) {
+              return;
+            }
+
+            const hours = getTaskHoursInRange(task, cutoffDate, endDate);
+            if (hours <= 0) {
+              return;
+            }
+
+            if (!projectHours[task.projectId]) {
+              projectHours[task.projectId] = 0;
+              projectTasks[task.projectId] = [];
+            }
+
+            projectHours[task.projectId] += hours;
+
+            projectTasks[task.projectId].push({
+              id: task.id,
+              title: task.title,
+              parentId: task.parentId || null,
+              hours: hours
+            });
           });
 
           if (Object.keys(projectHours).length === 0) {
@@ -710,7 +908,7 @@
 
           // Generate invoice HTML using the plugin's function
           // For now, we'll create a simple preview
-          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel);
+          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById);
 
         } catch (error) {
           console.error('Error generating invoice:', error);
@@ -722,7 +920,7 @@
       });
 
       // Display invoice preview
-      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel) {
+      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById) {
         const projectMap = {};
         projectsList.forEach(p => {
           projectMap[p.id] = p.title;
@@ -746,20 +944,8 @@
 
           let descriptionContent = `<div style="font-weight: 600;">${projectName}</div>`;
           
-          if (itemizationLevel === 2 && projectTasks[projectId] && projectTasks[projectId].length > 0) {
-            // Merge tasks with the same name
-            const mergedTasks = {};
-            projectTasks[projectId].forEach(t => {
-              if (mergedTasks[t.title]) {
-                mergedTasks[t.title] += t.hours;
-              } else {
-                mergedTasks[t.title] = t.hours;
-              }
-            });
-            
-            const taskList = Object.entries(mergedTasks).map(([title, hours]) => 
-              `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: 20px;">• ${title} (${hours.toFixed(2)}h)</div>`
-            ).join('\n');
+          const taskList = buildProjectTaskDetailsHtml(projectTasks[projectId], allTasksById, itemizationLevel);
+          if (taskList) {
             descriptionContent += taskList;
           }
 
