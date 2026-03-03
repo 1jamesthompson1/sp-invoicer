@@ -1,0 +1,116 @@
+name: Build and Release Plugin
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ensure zip is available
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      - name: Build plugin package
+        run: npm run build
+
+      - name: Generate changelog and release notes
+        run: |
+          set -euo pipefail
+
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || true)"
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            RANGE="${PREVIOUS_TAG}..${CURRENT_TAG}"
+            TITLE="Changes since ${PREVIOUS_TAG}"
+          else
+            RANGE="${CURRENT_TAG}"
+            TITLE="Initial release changes"
+          fi
+
+          COMMITS="$(git log --no-merges --pretty=format:'- %s (%h)' ${RANGE})"
+          if [ -z "$COMMITS" ]; then
+            COMMITS="- No commit messages found in this range"
+          fi
+
+          cat > release-notes.md <<EOF
+          ## ${CURRENT_TAG} (${RELEASE_DATE})
+
+          ${TITLE}
+
+          ${COMMITS}
+          EOF
+
+          if [ ! -f CHANGELOG.md ]; then
+            cat > CHANGELOG.md <<'EOF'
+          # Changelog
+
+          All notable changes to this project are documented in this file.
+
+          <!-- changelog-entries -->
+          EOF
+          fi
+
+          if ! grep -q "<!-- changelog-entries -->" CHANGELOG.md; then
+            printf "\n<!-- changelog-entries -->\n" >> CHANGELOG.md
+          fi
+
+          if ! grep -q "^## ${CURRENT_TAG} (" CHANGELOG.md; then
+            tmp_file="$(mktemp)"
+            while IFS= read -r line || [ -n "$line" ]; do
+              printf '%s\n' "$line" >> "$tmp_file"
+              if [ "$line" = "<!-- changelog-entries -->" ]; then
+                printf '\n' >> "$tmp_file"
+                cat release-notes.md >> "$tmp_file"
+                printf '\n\n' >> "$tmp_file"
+              fi
+            done < CHANGELOG.md
+            mv "$tmp_file" CHANGELOG.md
+          fi
+
+      - name: Commit changelog to default branch
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "No changelog changes to commit"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): update for ${GITHUB_REF_NAME}"
+          git push origin HEAD:${DEFAULT_BRANCH}
+
+      - name: Create GitHub Release and upload ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          body_path: release-notes.md
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
