@@ -1,3 +1,64 @@
+      // --- Dark mode logic: auto, light, dark ---
+      function setDarkMode(mode) {
+        // mode: 'auto', 'light', 'dark'
+        if (mode === 'dark') {
+          document.documentElement.classList.add('dark-mode');
+          document.body.classList.add('dark-mode');
+          document.documentElement.classList.remove('light-mode');
+          document.body.classList.remove('light-mode');
+        } else if (mode === 'light') {
+          document.documentElement.classList.remove('dark-mode');
+          document.body.classList.remove('dark-mode');
+          document.documentElement.classList.add('light-mode');
+          document.body.classList.add('light-mode');
+        } else {
+          // auto: remove both, let prefers-color-scheme CSS apply
+          document.documentElement.classList.remove('dark-mode');
+          document.body.classList.remove('dark-mode');
+          document.documentElement.classList.remove('light-mode');
+          document.body.classList.remove('light-mode');
+        }
+        localStorage.setItem('sp-invoicer-dark-mode', mode);
+      }
+
+      function getDarkModePref() {
+        return localStorage.getItem('sp-invoicer-dark-mode') || 'auto';
+      }
+
+      function getSystemDarkMode() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+
+      function setupDarkModeToggle() {
+        const select = document.getElementById('dark-mode-toggle');
+        if (!select) return;
+        
+        const pref = getDarkModePref();
+        select.value = pref;
+        
+        // For auto mode, check system preference
+        if (pref === 'auto') {
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark-mode');
+            document.body.classList.add('dark-mode');
+          }
+        } else {
+          setDarkMode(pref);
+        }
+        
+        select.onchange = () => {
+          setDarkMode(select.value);
+        };
+      }
+
+      // Listen for system theme changes if in auto mode
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        if (getDarkModePref() === 'auto') {
+          setDarkMode('auto');
+        }
+      });
+
+      window.addEventListener('DOMContentLoaded', setupDarkModeToggle);
       // State management
       let myDetails = null;
       let clients = [];
@@ -71,37 +132,45 @@
             const invoicesList = document.getElementById('invoices-list');
             if (!invoicesList) return;
 
-            if (generatedInvoices.length === 0) {
-              invoicesList.innerHTML = '<p style="padding: 10px; color: #666;">No invoices generated yet.</p>';
-              return;
+            function isDarkMode() {
+              return document.documentElement.classList.contains('dark-mode') || 
+                document.body.classList.contains('dark-mode') ||
+                (!document.documentElement.classList.contains('light-mode') && 
+                 !document.body.classList.contains('light-mode') && 
+                 window.matchMedia('(prefers-color-scheme: dark)').matches);
             }
 
+            if (generatedInvoices.length === 0) {
+              invoicesList.innerHTML = '<p class="empty-state">No invoices generated yet.</p>';
+              return;
+            }
+            
             const html = `
-              <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+              <table>
                 <thead>
-                  <tr style="background-color: #f5f5f5; border-bottom: 2px solid #ddd;">
-                    <th style="padding: 10px; text-align: left;">Invoice #</th>
-                    <th style="padding: 10px; text-align: left;">Client</th>
-                    <th style="padding: 10px; text-align: left;">Date</th>
-                    <th style="padding: 10px; text-align: left;">Period</th>
-                    <th style="padding: 10px; text-align: right;">Total</th>
-                    <th style="padding: 10px; text-align: left;">Created</th>
-                    <th style="padding: 10px; text-align: center;">Actions</th>
+                  <tr>
+                    <th>Invoice #</th>
+                    <th>Client</th>
+                    <th>Date</th>
+                    <th>Period</th>
+                    <th style="text-align: right;">Total</th>
+                    <th>Created</th>
+                    <th style="text-align: center;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${generatedInvoices.map((invoice, index) => {
                     const createdDate = new Date(invoice.createdAt).toLocaleDateString();
                     return `
-                      <tr style="border-bottom: 1px solid #eee;">
-                        <td style="padding: 10px; font-weight: bold;">${invoice.number}</td>
-                        <td style="padding: 10px;">${invoice.clientName}</td>
-                        <td style="padding: 10px;">${new Date(invoice.date).toLocaleDateString()}</td>
-                        <td style="padding: 10px; font-size: 0.9em;">${invoice.period}</td>
-                        <td style="padding: 10px; text-align: right; font-weight: bold;">$${invoice.total.toFixed(2)}</td>
-                        <td style="padding: 10px; font-size: 0.9em;">${createdDate}</td>
-                        <td style="padding: 10px; text-align: center;">
-                          <button onclick="deleteInvoice(${index})" style="padding: 5px 10px; background-color: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer;">Delete</button>
+                      <tr>
+                        <td><strong>${invoice.number}</strong></td>
+                        <td>${invoice.clientName}</td>
+                        <td>${new Date(invoice.date).toLocaleDateString()}</td>
+                        <td class="period">${invoice.period}</td>
+                        <td style="text-align: right;"><strong>$${invoice.total.toFixed(2)}</strong></td>
+                        <td class="created">${createdDate}</td>
+                        <td style="text-align: center;">
+                          <button onclick="deleteInvoice(${index})">Delete</button>
                         </td>
                       </tr>
                     `;

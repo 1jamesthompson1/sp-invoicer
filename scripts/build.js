@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const rootDir = __dirname;
+const rootDir = path.resolve(__dirname, '..');
 const srcDir = path.join(rootDir, 'plugin');
 const syncOnly = process.argv.includes('--sync-only');
 

@@ -1,6 +1,14 @@
-    <h1>📄 Invoice Maker</h1>
 
-    <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <h1>📄 Invoice Maker</h1>
+      <select id="dark-mode-toggle">
+        <option value="auto">🖥️ Auto</option>
+        <option value="light">☀️ Light</option>
+        <option value="dark">🌙 Dark</option>
+      </select>
+    </div>
+
+    <div class="dev-warning" style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
       <strong>⚠️ Early Development:</strong> This plugin is in active development. Back up your Super Productivity data regularly.
     </div>
 
@@ -16,7 +24,7 @@
     <div class="tab-content" id="mydetails-tab">
       <div class="card">
         <h2>Your Business Information</h2>
-        <p style="color: #666; margin-bottom: 20px;">This information will appear on your invoices.</p>
+        <p class="intro-text" style="margin-bottom: 20px;">This information will appear on your invoices.</p>
         
         <form id="mydetails-form">
           <div class="form-group">
@@ -146,7 +154,7 @@
     <div class="tab-content" id="projects-tab">
       <div class="card">
         <h2>Assign Projects to Clients</h2>
-        <p style="color: #666; margin-bottom: 20px;">Link your Super Productivity projects to clients for invoice generation.</p>
+        <p class="intro-text" style="margin-bottom: 20px;">Link your Super Productivity projects to clients for invoice generation.</p>
         
         <div class="form-group">
           <label>Select Project *</label>
@@ -175,7 +183,7 @@
     <div class="tab-content active" id="generate-tab">
       <div class="card">
         <h2>Generate Invoice</h2>
-        <p style="color: #666; margin-bottom: 20px;">Create and preview an invoice for a client.</p>
+        <p class="intro-text" style="margin-bottom: 20px;">Create and preview an invoice for a client.</p>
         
         <form id="generate-invoice-form">
           <div class="form-group">
@@ -237,7 +245,7 @@
     <div class="tab-content" id="invoices-tab">
       <div class="card">
         <h2>Generated Invoices</h2>
-        <p style="color: #666; margin-bottom: 20px;">View all invoices you have generated.</p>
+        <p class="intro-text" style="margin-bottom: 20px;">View all invoices you have generated.</p>
       </div>
 
       <div id="invoices-list">

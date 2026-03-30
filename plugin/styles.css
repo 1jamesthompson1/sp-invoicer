@@ -1,255 +1,772 @@
-      * {
-        box-sizing: border-box;
-      }
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
 
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-        padding: 20px;
-        background: #f5f5f5;
-        margin: 0;
-      }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  padding: 20px;
+  background: #f5f5f5;
+  margin: 0;
+  color: #333;
+}
 
-      h1 {
-        color: #333;
-        margin-bottom: 24px;
-      }
+h1 {
+  color: #333;
+  margin-bottom: 24px;
+}
 
-      h2 {
-        color: #555;
-        margin-top: 32px;
-        margin-bottom: 16px;
-        font-size: 1.3em;
-      }
+h2 {
+  color: #555;
+  margin-top: 32px;
+  margin-bottom: 16px;
+  font-size: 1.3em;
+}
 
-      .tabs {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 24px;
-        border-bottom: 2px solid #ddd;
-      }
+h3 {
+  color: #444;
+}
 
-      .tab {
-        background: transparent;
-        border: none;
-        padding: 12px 24px;
-        cursor: pointer;
-        font-size: 14px;
-        color: #666;
-        border-bottom: 3px solid transparent;
-        margin-bottom: -2px;
-        transition: all 0.2s;
-      }
+label {
+  display: block;
+  margin-bottom: 6px;
+  color: #555;
+  font-weight: 500;
+  font-size: 14px;
+}
 
-      .tab:hover {
-        color: #333;
-        background: #f0f0f0;
-      }
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #ddd;
+}
 
-      .tab.active {
-        color: #4caf50;
-        border-bottom-color: #4caf50;
-        font-weight: 600;
-      }
+.tab {
+  background: transparent;
+  border: none;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
 
-      .tab-content {
-        display: none;
-      }
+.tab:hover {
+  color: #333;
+  background: #f0f0f0;
+}
 
-      .tab-content.active {
-        display: block;
-      }
+.tab.active {
+  color: #4caf50;
+  border-bottom-color: #4caf50;
+  font-weight: 600;
+  background: #e8f5e9;
+}
 
-      .card {
-        background: white;
-        border-radius: 8px;
-        padding: 24px;
-        margin-bottom: 16px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-      }
+.tab-content {
+  display: none;
+}
 
-      .form-group {
-        margin-bottom: 16px;
-      }
+.tab-content.active {
+  display: block;
+}
 
-      label {
-        display: block;
-        margin-bottom: 6px;
-        color: #555;
-        font-weight: 500;
-        font-size: 14px;
-      }
+.card {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
 
-      input[type="text"],
-      input[type="number"],
-      input[type="email"],
-      textarea,
-      select {
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-        font-family: inherit;
-        transition: border-color 0.2s;
-      }
+.form-group {
+  margin-bottom: 16px;
+}
 
-      input:focus,
-      textarea:focus,
-      select:focus {
-        outline: none;
-        border-color: #4caf50;
-      }
+input[type="text"],
+input[type="number"],
+input[type="email"],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  background: white;
+  color: #333;
+}
 
-      textarea {
-        resize: vertical;
-        min-height: 80px;
-      }
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #4caf50;
+}
 
-      .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
 
-      input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-      }
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-      button {
-        background: #4caf50;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        transition: background 0.2s;
-      }
+input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
 
-      button:hover {
-        background: #45a049;
-      }
+button {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
 
-      button.secondary {
-        background: #757575;
-      }
+button:hover {
+  background: #45a049;
+}
 
-      button.secondary:hover {
-        background: #616161;
-      }
+button.secondary {
+  background: #757575;
+}
 
-      button.danger {
-        background: #f44336;
-      }
+button.secondary:hover {
+  background: #616161;
+}
 
-      button.danger:hover {
-        background: #d32f2f;
-      }
+button.danger {
+  background: #f44336;
+}
 
-      button:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-      }
+button.danger:hover {
+  background: #d32f2f;
+}
 
-      .button-group {
-        display: flex;
-        gap: 8px;
-        margin-top: 16px;
-      }
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
 
-      .client-list {
-        display: grid;
-        gap: 12px;
-      }
+.button-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
 
-      .client-item {
-        background: white;
-        border-radius: 8px;
-        padding: 16px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-      }
+select#dark-mode-toggle {
+  margin-left: auto;
+  padding: 6px 16px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  width: auto;
+  min-width: 120px;
+}
 
-      .client-info {
-        flex: 1;
-      }
+select#dark-mode-toggle option {
+  background: white;
+  color: #333;
+}
 
-      .client-name {
-        font-weight: 600;
-        font-size: 16px;
-        color: #333;
-        margin-bottom: 8px;
-      }
+.client-list {
+  display: grid;
+  gap: 12px;
+}
 
-      .client-details {
-        font-size: 13px;
-        color: #666;
-        line-height: 1.5;
-      }
+.client-item {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
 
-      .client-actions {
-        display: flex;
-        gap: 8px;
-      }
+.client-info {
+  flex: 1;
+}
 
-      .client-actions button {
-        padding: 6px 12px;
-        font-size: 13px;
-      }
+.client-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 8px;
+}
 
-      .project-list {
-        margin-top: 12px;
-        padding-top: 12px;
-        border-top: 1px solid #eee;
-      }
+.client-details {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
 
-      .project-item {
-        padding: 8px;
-        background: #f5f5f5;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        font-size: 13px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
+.client-actions {
+  display: flex;
+  gap: 8px;
+}
 
-      .badge {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 500;
-        background: #e8f5e9;
-        color: #2e7d32;
-        margin-left: 8px;
-      }
+.client-actions button {
+  padding: 6px 12px;
+  font-size: 13px;
+}
 
-      .badge.warning {
-        background: #fff3e0;
-        color: #ef6c00;
-      }
+.project-list {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
 
-      .empty-state {
-        text-align: center;
-        padding: 40px;
-        color: #999;
-      }
+.project-item {
+  padding: 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #333;
+}
 
-      .small-text {
-        font-size: 12px;
-        color: #888;
-        margin-top: 4px;
-      }
+.badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #e8f5e9;
+  color: #2e7d32;
+  margin-left: 8px;
+}
 
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-      }
+.badge.warning {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+.small-text {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.intro-text {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* Invoice preview - always light (like paper) */
+#invoice-preview,
+#invoice-iframe-container,
+#invoice-iframe-container iframe {
+  background: white !important;
+}
+
+#invoice-iframe-container iframe {
+  border: 1px solid #ccc !important;
+}
+
+/* Invoice table - light mode */
+#invoices-list table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  color: #333;
+}
+
+#invoices-list table th,
+#invoices-list table td {
+  padding: 10px;
+}
+
+#invoices-list table thead tr {
+  background-color: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+#invoices-list table thead th {
+  color: #333;
+  text-align: left;
+}
+
+#invoices-list table tbody tr {
+  border-bottom: 1px solid #eee;
+}
+
+#invoices-list table tbody td {
+  color: #333;
+}
+
+/* Invoice table - dark mode */
+html.dark-mode #invoices-list table,
+body.dark-mode #invoices-list table {
+  color: #e0e0e0;
+}
+
+html.dark-mode #invoices-list table thead tr,
+body.dark-mode #invoices-list table thead tr {
+  background-color: #23272a;
+  border-bottom: 2px solid #444;
+}
+
+html.dark-mode #invoices-list table thead th,
+body.dark-mode #invoices-list table thead th {
+  color: #e0e0e0;
+}
+
+html.dark-mode #invoices-list table tbody tr,
+body.dark-mode #invoices-list table tbody tr {
+  border-bottom: 1px solid #333;
+}
+
+html.dark-mode #invoices-list table tbody td,
+body.dark-mode #invoices-list table tbody td {
+  color: #e0e0e0;
+}
+
+#invoices-list .empty-state,
+#clients-list .empty-state,
+#assignments-list .empty-state {
+  color: #999;
+}
+
+#invoices-list p {
+  color: #666;
+}
+
+/* Dark mode - applied to html element via JavaScript */
+html.dark-mode body,
+body.dark-mode {
+  background: #181a1b;
+  color: #e0e0e0;
+}
+
+html.dark-mode h1,
+body.dark-mode h1 {
+  color: #fff;
+}
+
+html.dark-mode h2,
+body.dark-mode h2,
+html.dark-mode h3,
+body.dark-mode h3 {
+  color: #e0e0e0;
+}
+
+html.dark-mode label,
+body.dark-mode label {
+  color: #ccc;
+}
+
+html.dark-mode .intro-text,
+body.dark-mode .intro-text,
+html.dark-mode p,
+body.dark-mode p {
+  color: #aaa !important;
+}
+
+html.dark-mode .tabs,
+body.dark-mode .tabs {
+  border-bottom-color: #333;
+}
+
+html.dark-mode .tab,
+body.dark-mode .tab {
+  color: #aaa;
+  background: transparent;
+}
+
+html.dark-mode .tab:hover,
+body.dark-mode .tab:hover {
+  color: #fff;
+  background: #23272a;
+}
+
+html.dark-mode .tab.active,
+body.dark-mode .tab.active {
+  color: #4caf50;
+  background: #1e3a1f;
+  border-bottom-color: #4caf50;
+}
+
+html.dark-mode .card,
+body.dark-mode .card {
+  background: #23272a;
+  color: #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+html.dark-mode .client-item,
+body.dark-mode .client-item {
+  background: #23272a;
+  color: #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+html.dark-mode .client-name,
+body.dark-mode .client-name {
+  color: #fff;
+}
+
+html.dark-mode .client-details,
+body.dark-mode .client-details {
+  color: #aaa;
+}
+
+html.dark-mode input,
+html.dark-mode textarea,
+html.dark-mode select,
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+  background: #23272a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+}
+
+html.dark-mode input::placeholder,
+html.dark-mode textarea::placeholder,
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #666;
+}
+
+html.dark-mode select option,
+body.dark-mode select option {
+  background: #23272a;
+  color: #e0e0e0;
+}
+
+html.dark-mode .project-item,
+body.dark-mode .project-item {
+  background: #1a1d1e;
+  color: #e0e0e0;
+}
+
+html.dark-mode .project-list,
+body.dark-mode .project-list {
+  border-top-color: #333;
+}
+
+html.dark-mode .badge,
+body.dark-mode .badge {
+  background: #263238;
+  color: #80cbc4;
+}
+
+html.dark-mode .badge.warning,
+body.dark-mode .badge.warning {
+  background: #4e342e;
+  color: #ffb300;
+}
+
+html.dark-mode .empty-state,
+body.dark-mode .empty-state {
+  color: #777;
+}
+
+html.dark-mode .small-text,
+body.dark-mode .small-text {
+  color: #666;
+}
+
+html.dark-mode button,
+body.dark-mode button {
+  background: #388e3c;
+  color: #fff;
+}
+
+html.dark-mode button:hover,
+body.dark-mode button:hover {
+  background: #2e7031;
+}
+
+html.dark-mode button.secondary,
+body.dark-mode button.secondary {
+  background: #444;
+}
+
+html.dark-mode button.secondary:hover,
+body.dark-mode button.secondary:hover {
+  background: #222;
+}
+
+html.dark-mode button.danger,
+body.dark-mode button.danger {
+  background: #b71c1c;
+}
+
+html.dark-mode button.danger:hover,
+body.dark-mode button.danger:hover {
+  background: #7f0000;
+}
+
+html.dark-mode button:disabled,
+body.dark-mode button:disabled {
+  background: #333;
+  color: #666;
+}
+
+html.dark-mode select#dark-mode-toggle,
+body.dark-mode select#dark-mode-toggle {
+  background: #23272a !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #444 !important;
+}
+
+html.dark-mode select#dark-mode-toggle option,
+body.dark-mode select#dark-mode-toggle option {
+  background: #23272a;
+  color: #e0e0e0;
+}
+
+html.dark-mode .dev-warning,
+body.dark-mode .dev-warning {
+  background-color: #3d3200 !important;
+  border-color: #665500 !important;
+  color: #ffec80 !important;
+}
+
+html.dark-mode .dev-warning strong,
+body.dark-mode .dev-warning strong {
+  color: #ffec80;
+}
+
+html.dark-mode #invoices-list .empty-state,
+html.dark-mode #clients-list .empty-state,
+html.dark-mode #assignments-list .empty-state,
+body.dark-mode #invoices-list .empty-state,
+body.dark-mode #clients-list .empty-state,
+body.dark-mode #assignments-list .empty-state {
+  color: #666;
+}
+
+html.dark-mode #invoices-list p,
+body.dark-mode #invoices-list p {
+  color: #aaa !important;
+}
+
+/* System dark mode preference */
+@media (prefers-color-scheme: dark) {
+  body:not(.light-mode) {
+    background: #181a1b;
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) h1 {
+    color: #fff;
+  }
+
+  body:not(.light-mode) h2,
+  body:not(.light-mode) h3 {
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) label {
+    color: #ccc;
+  }
+
+  body:not(.light-mode) .intro-text,
+  body:not(.light-mode) p {
+    color: #aaa !important;
+  }
+
+  body:not(.light-mode) .tabs {
+    border-bottom-color: #333;
+  }
+
+  body:not(.light-mode) .tab {
+    color: #aaa;
+    background: transparent;
+  }
+
+  body:not(.light-mode) .tab:hover {
+    color: #fff;
+    background: #23272a;
+  }
+
+  body:not(.light-mode) .tab.active {
+    color: #4caf50;
+    background: #1e3a1f;
+    border-bottom-color: #4caf50;
+  }
+
+  body:not(.light-mode) .card {
+    background: #23272a;
+    color: #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  }
+
+  body:not(.light-mode) .client-item {
+    background: #23272a;
+    color: #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  body:not(.light-mode) .client-name {
+    color: #fff;
+  }
+
+  body:not(.light-mode) .client-details {
+    color: #aaa;
+  }
+
+  body:not(.light-mode) input,
+  body:not(.light-mode) textarea,
+  body:not(.light-mode) select {
+    background: #23272a;
+    color: #e0e0e0;
+    border: 1px solid #444;
+  }
+
+  body:not(.light-mode) input::placeholder,
+  body:not(.light-mode) textarea::placeholder {
+    color: #666;
+  }
+
+  body:not(.light-mode) select option {
+    background: #23272a;
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) .project-item {
+    background: #1a1d1e;
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) .project-list {
+    border-top-color: #333;
+  }
+
+  body:not(.light-mode) .badge {
+    background: #263238;
+    color: #80cbc4;
+  }
+
+  body:not(.light-mode) .badge.warning {
+    background: #4e342e;
+    color: #ffb300;
+  }
+
+  body:not(.light-mode) .empty-state {
+    color: #777;
+  }
+
+  body:not(.light-mode) .small-text {
+    color: #666;
+  }
+
+  body:not(.light-mode) button {
+    background: #388e3c;
+    color: #fff;
+  }
+
+  body:not(.light-mode) button:hover {
+    background: #2e7031;
+  }
+
+  body:not(.light-mode) button.secondary {
+    background: #444;
+  }
+
+  body:not(.light-mode) button.secondary:hover {
+    background: #222;
+  }
+
+  body:not(.light-mode) button.danger {
+    background: #b71c1c;
+  }
+
+  body:not(.light-mode) button.danger:hover {
+    background: #7f0000;
+  }
+
+  body:not(.light-mode) button:disabled {
+    background: #333;
+    color: #666;
+  }
+
+  body:not(.light-mode) select#dark-mode-toggle {
+    background: #23272a !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #444 !important;
+  }
+
+  body:not(.light-mode) select#dark-mode-toggle option {
+    background: #23272a;
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) .dev-warning {
+    background-color: #3d3200 !important;
+    border-color: #665500 !important;
+    color: #ffec80 !important;
+  }
+
+  body:not(.light-mode) .dev-warning strong {
+    color: #ffec80;
+  }
+
+  body:not(.light-mode) #invoices-list .empty-state,
+  body:not(.light-mode) #clients-list .empty-state,
+  body:not(.light-mode) #assignments-list .empty-state {
+    color: #666;
+  }
+
+  body:not(.light-mode) #invoices-list p {
+    color: #aaa !important;
+  }
+
+  body:not(.light-mode) #invoices-list table {
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) #invoices-list table thead tr {
+    background-color: #23272a;
+    border-bottom: 2px solid #444;
+  }
+
+  body:not(.light-mode) #invoices-list table thead th {
+    color: #e0e0e0;
+  }
+
+  body:not(.light-mode) #invoices-list table tbody tr {
+    border-bottom: 1px solid #333;
+  }
+
+  body:not(.light-mode) #invoices-list table tbody td {
+    color: #e0e0e0;
+  }
+}
