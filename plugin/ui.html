@@ -8,10 +8,6 @@
       </select>
     </div>
 
-    <div class="dev-warning" style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
-      <strong>⚠️ Early Development:</strong> This plugin is in active development. Back up your Super Productivity data regularly.
-    </div>
-
     <div class="tabs">
       <button class="tab active" data-tab="generate">Generate Invoice</button>
       <button class="tab" data-tab="invoices">Invoices</button>
@@ -83,6 +79,36 @@
             <div class="small-text">Custom message that appears at the end of your invoices</div>
           </div>
 
+          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Rounding Options</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Default rounding settings for invoices. Can be overridden per client.</div>
+
+          <div class="form-group">
+            <label>Rounding Mode</label>
+            <select id="my-round-mode">
+              <option value="round">Normal (0.5 rounds up)</option>
+              <option value="ceil">Always Up</option>
+              <option value="floor">Always Down</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Round Individual Entries To (minutes)</label>
+            <input type="number" id="my-round-entry" min="0" step="1" placeholder="0 = disabled">
+            <div class="small-text">Round each time entry before merging</div>
+          </div>
+
+          <div class="form-group">
+            <label>Round Merged Entries To (minutes)</label>
+            <input type="number" id="my-round-merged" min="0" step="1" placeholder="0 = disabled">
+            <div class="small-text">Round after merging same-named entries</div>
+          </div>
+
+          <div class="form-group">
+            <label>Round Project Total To (minutes)</label>
+            <input type="number" id="my-round-project" min="0" step="1" placeholder="0 = disabled">
+            <div class="small-text">Round final project total hours</div>
+          </div>
+
           <button type="submit">Save My Details</button>
         </form>
       </div>
@@ -135,6 +161,34 @@
               <input type="checkbox" id="client-tax-enabled">
               <label for="client-tax-enabled" style="margin-bottom: 0;">Apply tax to invoices</label>
             </div>
+          </div>
+
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Rounding Overrides</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Leave empty to use defaults from My Details.</div>
+
+          <div class="form-group">
+            <label>Rounding Mode</label>
+            <select id="client-round-mode">
+              <option value="">Use default</option>
+              <option value="round">Normal (0.5 rounds up)</option>
+              <option value="ceil">Always Up</option>
+              <option value="floor">Always Down</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Round Individual Entries To (minutes)</label>
+            <input type="number" id="client-round-entry" min="0" step="1" placeholder="0 = use default">
+          </div>
+
+          <div class="form-group">
+            <label>Round Merged Entries To (minutes)</label>
+            <input type="number" id="client-round-merged" min="0" step="1" placeholder="0 = use default">
+          </div>
+
+          <div class="form-group">
+            <label>Round Project Total To (minutes)</label>
+            <input type="number" id="client-round-project" min="0" step="1" placeholder="0 = use default">
           </div>
 
           <div class="button-group">

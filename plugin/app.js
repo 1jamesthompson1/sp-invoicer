@@ -309,7 +309,11 @@
           taxId: document.getElementById('my-tax-id').value,
           bankDetails: document.getElementById('my-bank').value,
           invoiceTitle: document.getElementById('my-invoice-title').value || 'Invoice',
-          invoiceMessage: document.getElementById('my-invoice-message').value || 'Thank you for your business!'
+          invoiceMessage: document.getElementById('my-invoice-message').value || 'Thank you for your business!',
+          roundMode: document.getElementById('my-round-mode').value || 'round',
+          roundEntry: parseInt(document.getElementById('my-round-entry').value) || 0,
+          roundMerged: parseInt(document.getElementById('my-round-merged').value) || 0,
+          roundProject: parseInt(document.getElementById('my-round-project').value) || 0
         };
 
         await saveData();
@@ -335,6 +339,10 @@
           document.getElementById('my-bank').value = myDetails.bankDetails || '';
           document.getElementById('my-invoice-title').value = myDetails.invoiceTitle || 'Invoice';
           document.getElementById('my-invoice-message').value = myDetails.invoiceMessage || 'Thank you for your business!';
+          document.getElementById('my-round-mode').value = myDetails.roundMode || 'round';
+          document.getElementById('my-round-entry').value = myDetails.roundEntry || '';
+          document.getElementById('my-round-merged').value = myDetails.roundMerged || '';
+          document.getElementById('my-round-project').value = myDetails.roundProject || '';
 
           // Show preview
           document.getElementById('mydetails-preview').style.display = 'block';
@@ -382,7 +390,11 @@
           hourlyRate: parseFloat(document.getElementById('client-rate').value),
           taxName: document.getElementById('client-tax-name').value || 'Tax',
           taxRate: parseFloat(document.getElementById('client-tax-rate').value) || 0,
-          taxEnabled: document.getElementById('client-tax-enabled').checked
+          taxEnabled: document.getElementById('client-tax-enabled').checked,
+          roundMode: document.getElementById('client-round-mode').value || '',
+          roundEntry: parseInt(document.getElementById('client-round-entry').value) || 0,
+          roundMerged: parseInt(document.getElementById('client-round-merged').value) || 0,
+          roundProject: parseInt(document.getElementById('client-round-project').value) || 0
         };
 
         if (editingClientId) {
@@ -434,6 +446,10 @@
         document.getElementById('client-tax-name').value = client.taxName || '';
         document.getElementById('client-tax-rate').value = client.taxRate || 0;
         document.getElementById('client-tax-enabled').checked = client.taxEnabled;
+        document.getElementById('client-round-mode').value = client.roundMode || '';
+        document.getElementById('client-round-entry').value = client.roundEntry || '';
+        document.getElementById('client-round-merged').value = client.roundMerged || '';
+        document.getElementById('client-round-project').value = client.roundProject || '';
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
         
@@ -795,6 +811,25 @@
         return mergedRootNodes.map(root => renderNestedTaskNode(root, 0)).join('\n');
       }
 
+      function buildProjectTaskDetailsHtmlFromMerged(mergedTasks, allTasksById, itemizationLevel) {
+        if (!mergedTasks || mergedTasks.length === 0 || itemizationLevel === 1) {
+          return '';
+        }
+
+        if (itemizationLevel === 2) {
+          return mergedTasks
+            .sort((a, b) => b.hours - a.hours)
+            .map(task => `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: 20px;">• ${escapeHtml(task.title)} (${task.hours.toFixed(2)}h)</div>`)
+            .join('\n');
+        }
+
+        // For level 3, show all merged tasks sorted
+        return mergedTasks
+          .sort((a, b) => b.hours - a.hours)
+          .map(task => `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: 20px;">• ${escapeHtml(task.title)} (${task.hours.toFixed(2)}h)</div>`)
+          .join('\n');
+      }
+
       // Update generate client select
       function updateGenerateClientSelect() {
         const select = document.getElementById('gen-client-select');
@@ -938,6 +973,31 @@
           const projectHours = {};
           const projectTasks = {};
 
+          const getRoundingConfig = () => {
+            const roundMode = selectedClient.roundMode || myDetails.roundMode || 'round';
+            const entryRound = selectedClient.roundEntry > 0 ? selectedClient.roundEntry : (myDetails.roundEntry || 0);
+            const mergedRound = selectedClient.roundMerged > 0 ? selectedClient.roundMerged : (myDetails.roundMerged || 0);
+            const projectRound = selectedClient.roundProject > 0 ? selectedClient.roundProject : (myDetails.roundProject || 0);
+            return { roundMode, entryRound, mergedRound, projectRound };
+          };
+
+          const roundToInterval = (value, intervalMinutes, roundMode) => {
+            if (!intervalMinutes || intervalMinutes <= 0) return value;
+            const intervalHours = intervalMinutes / 60;
+            const raw = value / intervalHours;
+            let result;
+            if (roundMode === 'ceil') {
+              result = Math.ceil(raw);
+            } else if (roundMode === 'floor') {
+              result = Math.floor(raw);
+            } else {
+              result = Math.round(raw);
+            }
+            return result * intervalHours;
+          };
+
+          const roundingConfig = getRoundingConfig();
+
           allTasks.forEach(task => {
             if (!clientProjects.includes(task.projectId)) {
               return;
@@ -947,23 +1007,26 @@
               return;
             }
 
-            const hours = getTaskHoursInRange(task, cutoffDate, endDate);
-            if (hours <= 0) {
+            const rawHours = getTaskHoursInRange(task, cutoffDate, endDate);
+            if (rawHours <= 0) {
               return;
             }
+
+            // Apply entry rounding
+            const entryRoundedHours = roundToInterval(rawHours, roundingConfig.entryRound, roundingConfig.roundMode);
 
             if (!projectHours[task.projectId]) {
               projectHours[task.projectId] = 0;
               projectTasks[task.projectId] = [];
             }
 
-            projectHours[task.projectId] += hours;
+            projectHours[task.projectId] += entryRoundedHours;
 
             projectTasks[task.projectId].push({
               id: task.id,
               title: task.title,
               parentId: task.parentId || null,
-              hours: hours
+              hours: entryRoundedHours
             });
           });
 
@@ -975,9 +1038,8 @@
             return;
           }
 
-          // Generate invoice HTML using the plugin's function
-          // For now, we'll create a simple preview
-          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById);
+          // Apply rounding config to preview function
+          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig);
 
         } catch (error) {
           console.error('Error generating invoice:', error);
@@ -989,7 +1051,7 @@
       });
 
       // Display invoice preview
-      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById) {
+      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig) {
         const projectMap = {};
         projectsList.forEach(p => {
           projectMap[p.id] = p.title;
@@ -997,7 +1059,6 @@
 
         let totalHours = 0;
         let subtotal = 0;
-        // Generate unique invoice number
         const invoiceNumber = generateInvoiceNumber();
         const myEmailLink = myDetails.email ? `mailto:${myDetails.email}` : '';
         const clientEmailLink = client.email ? `mailto:${client.email}` : '';
@@ -1005,15 +1066,54 @@
           ? (myDetails.website.startsWith('http') ? myDetails.website : `https://${myDetails.website}`)
           : '';
 
-        const lineItems = Object.entries(projectHours).map(([projectId, hours]) => {
+        const roundToInterval = (value, intervalMinutes, roundMode) => {
+          if (!intervalMinutes || intervalMinutes <= 0) return value;
+          const intervalHours = intervalMinutes / 60;
+          const raw = value / intervalHours;
+          let result;
+          if (roundMode === 'ceil') {
+            result = Math.ceil(raw);
+          } else if (roundMode === 'floor') {
+            result = Math.floor(raw);
+          } else {
+            result = Math.round(raw);
+          }
+          return result * intervalHours;
+        };
+
+        const lineItems = Object.entries(projectHours).map(([projectId, rawProjectHours]) => {
           const projectName = projectMap[projectId] || 'Unknown Project';
-          const amount = hours * client.hourlyRate;
-          totalHours += hours;
+
+          // Get tasks for this project and merge same-named entries
+          const tasksForProject = projectTasks[projectId] || [];
+          const mergedTasks = {};
+          
+          tasksForProject.forEach(task => {
+            const key = task.title.toLowerCase().trim();
+            if (!mergedTasks[key]) {
+              mergedTasks[key] = { title: task.title, hours: 0 };
+            }
+            mergedTasks[key].hours += task.hours;
+          });
+
+          // Apply merged rounding to each merged task
+          const mergedWithRounding = Object.values(mergedTasks).map(task => ({
+            ...task,
+            hours: roundToInterval(task.hours, roundingConfig.mergedRound, roundingConfig.roundMode)
+          }));
+
+          // Sum up for project total, then apply project rounding
+          const sumBeforeProjectRound = mergedWithRounding.reduce((sum, t) => sum + t.hours, 0);
+          const projectTotalHours = roundToInterval(sumBeforeProjectRound, roundingConfig.projectRound, roundingConfig.roundMode);
+
+          const amount = projectTotalHours * client.hourlyRate;
+          totalHours += projectTotalHours;
           subtotal += amount;
 
           let descriptionContent = `<div style="font-weight: 600;">${projectName}</div>`;
           
-          const taskList = buildProjectTaskDetailsHtml(projectTasks[projectId], allTasksById, itemizationLevel);
+          // Build task list with rounded merged values
+          const taskList = buildProjectTaskDetailsHtmlFromMerged(mergedWithRounding, allTasksById, itemizationLevel);
           if (taskList) {
             descriptionContent += taskList;
           }
@@ -1023,7 +1123,7 @@
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee;">
                 ${descriptionContent}
               </td>
-              <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">${hours.toFixed(2)}</td>
+              <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">${projectTotalHours.toFixed(2)}</td>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">$${client.hourlyRate.toFixed(2)}</td>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">$${amount.toFixed(2)}</td>
             </tr>`;

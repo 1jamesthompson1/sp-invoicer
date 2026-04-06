@@ -7,7 +7,7 @@
 [![Invoice maker plugin screenshot](assets/example-screenshot.png)](assets/example.pdf)
 
 > **⚠️ Early Development Warning**  
-> This plugin is in early stages of development. **Always back up your Super Productivity data** before installing or updating this plugin. While the plugin syncs data across devices, we recommend regular exports of your client/invoice data until the plugin reaches a stable release.
+> This plugin is in early stages of development. It is not yet [feature-complete](https://github.com/1jamesthompson1/sp-invoicer/milestone/2) and is not yet at a [stable release](https://github.com/1jamesthompson1/sp-invoicer/milestone/1) version. This mainly means that although the core functionality of generating invoices from Super Productivity time tracking is working, there are still some missing features, rough edges, and potential bugs.
 
 ## Features
 
