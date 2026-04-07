@@ -3,6 +3,16 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.3 (2026-04-07)
+
+Changes since v0.0.2
+
+- Add in rounding this Fixes #3. (d3b57cf)
+- Add in support for dark mode closes #2 (ad00179)
+- Update readme and simplify the build process (97ef68d)
+- docs(changelog): update for v0.0.2 (9126e78)
+
+
 
 ## v0.0.2 (2026-03-03)
 
