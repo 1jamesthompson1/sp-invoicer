@@ -39,35 +39,31 @@ jobs:
           set -euo pipefail
 
           CURRENT_TAG="${GITHUB_REF_NAME}"
-          
-          if [ -f CHANGELOG.md ] && grep -q "^## ${CURRENT_TAG} (" CHANGELOG.md; then
-            # Extract the section for this release from CHANGELOG.md
-            awk "/^## ${CURRENT_TAG} \(/,/^## [0-9]/ {if (/^## [0-9]/ && !/^## ${CURRENT_TAG} \(/) exit; print}" CHANGELOG.md > release-notes.md
-            echo "Using changelog entry from CHANGELOG.md"
-          else
-            # Fallback: generate from commits
-            PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" 2>/dev/null || true)"
-            RELEASE_DATE="$(date -u +%Y-%m-%d)"
 
-            if [ -n "$PREVIOUS_TAG" ]; then
-              RANGE="${PREVIOUS_TAG}..${CURRENT_TAG}"
-              TITLE="Changes since ${PREVIOUS_TAG}"
-            else
-              RANGE="${CURRENT_TAG}"
-              TITLE="Initial release"
-            fi
-
-            COMMITS="$(git log --no-merges --pretty=format:'- %s (%h)' ${RANGE} || echo '- No changes')"
-
-            cat > release-notes.md <<EOF
-          ## ${CURRENT_TAG} (${RELEASE_DATE})
-
-          ${TITLE}
-
-          ${COMMITS}
-          EOF
-            echo "Generated release notes from commits (no CHANGELOG.md entry found)"
+          if [ ! -f CHANGELOG.md ]; then
+            echo "ERROR: CHANGELOG.md is missing. Release notes must be authored in CHANGELOG.md before tagging ${CURRENT_TAG}." >&2
+            exit 1
           fi
+
+          if ! grep -q "^## ${CURRENT_TAG} (" CHANGELOG.md; then
+            echo "ERROR: No changelog entry found for ${CURRENT_TAG}. Add a section like '## ${CURRENT_TAG} (YYYY-MM-DD)' to CHANGELOG.md before releasing." >&2
+            exit 1
+          fi
+
+          # Extract only the section for CURRENT_TAG until the next section header.
+          awk -v tag="$CURRENT_TAG" '
+            BEGIN { in_section = 0 }
+            $0 ~ "^## " tag " \\(" { in_section = 1; print; next }
+            in_section && $0 ~ /^## / { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            echo "ERROR: Failed to extract release notes for ${CURRENT_TAG} from CHANGELOG.md." >&2
+            exit 1
+          fi
+
+          echo "Using changelog entry from CHANGELOG.md"
 
       - name: Create GitHub Release and upload ZIP
         uses: softprops/action-gh-release@v2
