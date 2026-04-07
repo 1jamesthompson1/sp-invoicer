@@ -71,8 +71,14 @@ const output = template
   .replace('/* INLINE:script */', appJs.trimEnd())
   .trimEnd() + '\n';
 
-fs.writeFileSync(path.join(srcDir, 'index.html'), output, 'utf8');
-console.log('Built index.html');
+// Write to a hidden build directory for testing
+const buildDir = path.join(rootDir, '.build');
+const buildIndexPath = path.join(buildDir, 'index.html');
+if (!fs.existsSync(buildDir)) {
+  fs.mkdirSync(buildDir, { recursive: true });
+}
+fs.writeFileSync(buildIndexPath, output, 'utf8');
+console.log('Built .build/index.html for testing');
 
 // Create dist directory if it doesn't exist
 const distDir = path.join(rootDir, 'dist');
@@ -91,10 +97,8 @@ if (!fs.existsSync(pluginJsPath)) {
 }
 
 try {
-  execSync(`zip -q -j "${zipFilePath}" manifest.json plugin.js index.html`, { cwd: srcDir, stdio: 'pipe' });
+  execSync(`zip -q -j "${zipFilePath}" manifest.json plugin.js`, { cwd: srcDir, stdio: 'pipe' });
   console.log(`Built: ${zipFileName}`);
-  // Remove the generated index.html after zipping
-  fs.unlinkSync(path.join(srcDir, 'index.html'));
   // Optionally remove plugin.js if it was created as an empty file
   if (fs.readFileSync(pluginJsPath, 'utf8') === '') {
     fs.unlinkSync(pluginJsPath);

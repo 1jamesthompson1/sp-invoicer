@@ -136,6 +136,22 @@ Notes:
 
 ### Testing
 
+To run the test suite:
+
+```bash
+npm test
+```
+
+This runs both the build (to generate `.build/index.html` for tests) and Vitest.
+
+To run tests in watch mode:
+
+```bash
+npm run test:watch
+```
+
+The test data is stored in `test-data/sample-data.json` - you can modify this file to add new test cases or change existing data.
+
 To test the plugin in Super Productivity:
 
 1. Build the plugin using `npm run build`

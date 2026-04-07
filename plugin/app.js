@@ -89,18 +89,49 @@
           myDetails.taxIdLabel = 'Tax ID';
         }
         
-        // Create example client on first install if no clients exist
+        // Create example clients on first install if no clients exist
         if (!clients || clients.length === 0) {
-          clients = [{
-            id: 'example-client-' + Date.now(),
-            name: 'Example Client Inc.',
-            email: 'john@example.com',
-            address: '123 Business Street, Suite 100',
-            taxRate: 20,
-            taxName: 'VAT',
-            hourlyRate: 100,
-            taxEnabled: true
-          }];
+          const now = Date.now();
+          clients = [
+            {
+              id: 'client-' + now,
+              name: 'Acme Corp',
+              email: 'billing@acme.com',
+              address: '123 Business Street, Suite 100',
+              taxRate: 20,
+              taxName: 'VAT',
+              hourlyRate: 100,
+              taxEnabled: true
+            },
+            {
+              id: 'client-' + (now + 1),
+              name: 'TechStart Inc',
+              email: 'accounts@techstart.io',
+              address: '456 Innovation Drive',
+              taxRate: 0,
+              taxName: '',
+              hourlyRate: 120,
+              taxEnabled: false
+            },
+            {
+              id: 'client-' + (now + 2),
+              name: 'Global Systems',
+              email: 'finance@globalsys.com',
+              address: '789 Corporate Blvd',
+              taxRate: 25,
+              taxName: 'GST',
+              hourlyRate: 90,
+              taxEnabled: true
+            }
+          ];
+          
+          // Try to assign projects to clients if projects exist
+          if (projects && projects.length > 0) {
+            projects.slice(0, 3).forEach((proj, idx) => {
+              projectAssignments[proj.id] = clients[idx % clients.length].id;
+            });
+          }
+          
           await saveData();
         }
         
