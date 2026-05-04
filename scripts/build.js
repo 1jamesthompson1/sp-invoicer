@@ -84,21 +84,11 @@ if (!fs.existsSync(distDir)) {
 const zipFileName = `invoice-maker-v${packageJson.version}.zip`;
 const zipFilePath = path.join(distDir, zipFileName);
 
-// Create empty plugin.js if it doesn't exist
-const pluginJsPath = path.join(srcDir, 'plugin.js');
-if (!fs.existsSync(pluginJsPath)) {
-  fs.writeFileSync(pluginJsPath, '', 'utf8');
-}
-
 try {
   execSync(`zip -q -j "${zipFilePath}" manifest.json plugin.js index.html`, { cwd: srcDir, stdio: 'pipe' });
   console.log(`Built: ${zipFileName}`);
   // Remove the generated index.html after zipping
   fs.unlinkSync(path.join(srcDir, 'index.html'));
-  // Optionally remove plugin.js if it was created as an empty file
-  if (fs.readFileSync(pluginJsPath, 'utf8') === '') {
-    fs.unlinkSync(pluginJsPath);
-  }
 } catch (error) {
   console.error('Failed to create zip file:', error.message);
   process.exit(1);
