@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.4 (2026-05-04)
+
+Changes since v0.0.3
+
+- Remove empty plugin.js file creation n build process. Fixes #11 (803a9fa)
+
+
 ## v0.0.3 (2026-04-07)
 
 Changes since v0.0.2
