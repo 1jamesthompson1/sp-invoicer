@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.6 (2026-05-19)
+
+Changes since v0.0.5
+
+- Add in more summary data of project total hours and total cost. Closes #12 (1fbb8e4)
+- Add in support for due date fixes #16 (f75e1b1)
+
+
 ## v0.0.5 (2026-05-18)
 
 Changes since v0.0.4
