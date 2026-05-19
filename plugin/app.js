@@ -1143,7 +1143,8 @@
           totalHours += projectTotalHours;
           subtotal += amount;
 
-          let descriptionContent = `<div style="font-weight: 600;">${projectName}</div>`;
+          let descriptionContent = `<div style="font-weight: 600;">${projectName}</div>
+          <div style="font-size: 11px; color: #999; margin-top: 4px;">${projectTotalHours.toFixed(2)}h — $${amount.toFixed(2)}</div>`;
           
           // Build task list with rounded merged values
           const taskList = buildProjectTaskDetailsHtmlFromMerged(mergedWithRounding, allTasksById, itemizationLevel);
