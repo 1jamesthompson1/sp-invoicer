@@ -107,7 +107,8 @@
     </div>
     <div style="text-align: right;">
       <div class="section-title">Invoice Details</div>
-      <div><strong>Invoice Date:</strong> ${invoiceDate}</div>
+      <div><strong>Invoice Date:</strong> ${invoiceDateFormatted}</div>
+      ${dueDateFormatted ? `<div><strong>Due Date:</strong> ${dueDateFormatted}</div>` : ''}
       <div><strong>Period:</strong> ${periodLabel}</div>
     </div>
   </div>

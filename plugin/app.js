@@ -88,6 +88,9 @@
         if (!myDetails.taxIdLabel) {
           myDetails.taxIdLabel = 'Tax ID';
         }
+        if (!myDetails.dueDays && myDetails.dueDays !== 0) {
+          myDetails.dueDays = 30;
+        }
         
         // Create example client on first install if no clients exist
         if (!clients || clients.length === 0) {
@@ -99,7 +102,8 @@
             taxRate: 20,
             taxName: 'VAT',
             hourlyRate: 100,
-            taxEnabled: true
+            taxEnabled: true,
+            dueDays: null
           }];
           await saveData();
         }
@@ -152,6 +156,7 @@
                     <th>Invoice #</th>
                     <th>Client</th>
                     <th>Date</th>
+                    <th>Due Date</th>
                     <th>Period</th>
                     <th style="text-align: right;">Total</th>
                     <th>Created</th>
@@ -166,6 +171,7 @@
                         <td><strong>${invoice.number}</strong></td>
                         <td>${invoice.clientName}</td>
                         <td>${new Date(invoice.date).toLocaleDateString()}</td>
+                        <td>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}</td>
                         <td class="period">${invoice.period}</td>
                         <td style="text-align: right;"><strong>$${invoice.total.toFixed(2)}</strong></td>
                         <td class="created">${createdDate}</td>
@@ -313,7 +319,8 @@
           roundMode: document.getElementById('my-round-mode').value || 'round',
           roundEntry: parseInt(document.getElementById('my-round-entry').value) || 0,
           roundMerged: parseInt(document.getElementById('my-round-merged').value) || 0,
-          roundProject: parseInt(document.getElementById('my-round-project').value) || 0
+          roundProject: parseInt(document.getElementById('my-round-project').value) || 0,
+          dueDays: parseInt(document.getElementById('my-due-days').value) || 30
         };
 
         await saveData();
@@ -343,6 +350,7 @@
           document.getElementById('my-round-entry').value = myDetails.roundEntry || '';
           document.getElementById('my-round-merged').value = myDetails.roundMerged || '';
           document.getElementById('my-round-project').value = myDetails.roundProject || '';
+          document.getElementById('my-due-days').value = myDetails.dueDays || 30;
 
           // Show preview
           document.getElementById('mydetails-preview').style.display = 'block';
@@ -382,6 +390,7 @@
       document.getElementById('client-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         
+        const dueDaysValue = document.getElementById('client-due-days').value;
         const client = {
           id: editingClientId || Date.now().toString(),
           name: document.getElementById('client-name').value,
@@ -394,7 +403,8 @@
           roundMode: document.getElementById('client-round-mode').value || '',
           roundEntry: parseInt(document.getElementById('client-round-entry').value) || 0,
           roundMerged: parseInt(document.getElementById('client-round-merged').value) || 0,
-          roundProject: parseInt(document.getElementById('client-round-project').value) || 0
+          roundProject: parseInt(document.getElementById('client-round-project').value) || 0,
+          dueDays: dueDaysValue ? parseInt(dueDaysValue) : null
         };
 
         if (editingClientId) {
@@ -450,6 +460,7 @@
         document.getElementById('client-round-entry').value = client.roundEntry || '';
         document.getElementById('client-round-merged').value = client.roundMerged || '';
         document.getElementById('client-round-project').value = client.roundProject || '';
+        document.getElementById('client-due-days').value = client.dueDays || '';
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
         
@@ -1039,7 +1050,11 @@
           }
 
           // Apply rounding config to preview function
-          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig);
+          // Get due days from client override or use user default
+          const dueDays = selectedClient.dueDays !== null && selectedClient.dueDays !== undefined 
+            ? selectedClient.dueDays 
+            : (myDetails.dueDays || 30);
+          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
           console.error('Error generating invoice:', error);
@@ -1051,7 +1066,7 @@
       });
 
       // Display invoice preview
-      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig) {
+      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
         const projectMap = {};
         projectsList.forEach(p => {
           projectMap[p.id] = p.title;
@@ -1060,6 +1075,24 @@
         let totalHours = 0;
         let subtotal = 0;
         const invoiceNumber = generateInvoiceNumber();
+        
+        // Format dates for display
+        const formatDateForDisplay = (dateStr) => {
+          return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+        };
+        
+        const invoiceDateFormatted = formatDateForDisplay(invoiceDate);
+        
+        // Calculate due date
+        let dueDate = '';
+        let dueDateFormatted = '';
+        if (dueDays > 0) {
+          const invoiceDateObj = new Date(invoiceDate);
+          invoiceDateObj.setDate(invoiceDateObj.getDate() + dueDays);
+          dueDate = invoiceDateObj.toISOString().split('T')[0];
+          dueDateFormatted = formatDateForDisplay(dueDate);
+        }
+        
         const myEmailLink = myDetails.email ? `mailto:${myDetails.email}` : '';
         const clientEmailLink = client.email ? `mailto:${client.email}` : '';
         const websiteUrl = myDetails.website
@@ -1145,6 +1178,7 @@ __INVOICE_TEMPLATE__
           clientId: client.id,
           clientName: client.name,
           date: invoiceDate,
+          dueDate: dueDate,
           period: periodLabel,
           total: total,
           createdAt: new Date().toISOString()

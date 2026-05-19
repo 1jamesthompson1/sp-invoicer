@@ -109,6 +109,15 @@
             <div class="small-text">Round final project total hours</div>
           </div>
 
+          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Default Due Date</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Default number of days until payment is due. Can be overridden per client.</div>
+
+          <div class="form-group">
+            <label>Days Until Due *</label>
+            <input type="number" id="my-due-days" min="0" step="1" value="30" placeholder="e.g., 30">
+            <div class="small-text">Number of days from invoice date. Set to 0 for no due date.</div>
+          </div>
+
           <button type="submit">Save My Details</button>
         </form>
       </div>
@@ -189,6 +198,15 @@
           <div class="form-group">
             <label>Round Project Total To (minutes)</label>
             <input type="number" id="client-round-project" min="0" step="1" placeholder="0 = use default">
+          </div>
+
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Due Date Override</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Leave empty to use default from My Details.</div>
+
+          <div class="form-group">
+            <label>Days Until Due (override)</label>
+            <input type="number" id="client-due-days" min="0" step="1" placeholder="Leave empty to use default">
+            <div class="small-text">Override the default due date for this client only</div>
           </div>
 
           <div class="button-group">
