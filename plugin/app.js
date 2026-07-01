@@ -304,6 +304,9 @@
       // My Details form submission
       document.getElementById('mydetails-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        const dueDaysInput = parseInt(document.getElementById('my-due-days').value, 10);
+        const dueDays = Number.isNaN(dueDaysInput) ? 30 : Math.max(0, dueDaysInput);
         
         myDetails = {
           name: document.getElementById('my-name').value,
@@ -320,7 +323,7 @@
           roundEntry: parseInt(document.getElementById('my-round-entry').value) || 0,
           roundMerged: parseInt(document.getElementById('my-round-merged').value) || 0,
           roundProject: parseInt(document.getElementById('my-round-project').value) || 0,
-          dueDays: parseInt(document.getElementById('my-due-days').value) || 30
+          dueDays: dueDays
         };
 
         await saveData();
@@ -350,7 +353,7 @@
           document.getElementById('my-round-entry').value = myDetails.roundEntry || '';
           document.getElementById('my-round-merged').value = myDetails.roundMerged || '';
           document.getElementById('my-round-project').value = myDetails.roundProject || '';
-          document.getElementById('my-due-days').value = myDetails.dueDays || 30;
+          document.getElementById('my-due-days').value = myDetails.dueDays ?? 30;
 
           // Show preview
           document.getElementById('mydetails-preview').style.display = 'block';
@@ -460,7 +463,7 @@
         document.getElementById('client-round-entry').value = client.roundEntry || '';
         document.getElementById('client-round-merged').value = client.roundMerged || '';
         document.getElementById('client-round-project').value = client.roundProject || '';
-        document.getElementById('client-due-days').value = client.dueDays || '';
+        document.getElementById('client-due-days').value = client.dueDays ?? '';
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
         
@@ -1053,7 +1056,7 @@
           // Get due days from client override or use user default
           const dueDays = selectedClient.dueDays !== null && selectedClient.dueDays !== undefined 
             ? selectedClient.dueDays 
-            : (myDetails.dueDays || 30);
+            : (myDetails.dueDays ?? 30);
           displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
