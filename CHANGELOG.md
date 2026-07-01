@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.7 (2026-07-01)
+
+Changes since v0.0.5
+
+- fix: Error in due date that would stop the use of 0 due date being overridden. (64faadf)
+- fix: Remove duplicate hours and total from each project. (f640596)
+- 0.0.6 (9fc6a0f)
+- Add in more summary data of project total hours and total cost. Closes #12 (1fbb8e4)
+- Add in support for due date fixes #16 (f75e1b1)
+
+
 ## v0.0.6 (2026-05-19)
 
 Changes since v0.0.5
