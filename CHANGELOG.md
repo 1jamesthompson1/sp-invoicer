@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.8 (2026-07-03)
+
+Changes since v0.0.7
+
+- Add .nojekyll to allow for sidebar (fac7fb2)
+- Add website solves #9 (c1f1c4f)
+- Create CNAME (885bf24)
+- fix #13 (bde0e8f)
+- Add in user details profiles resolves #19 and resolves #18 (#20) (604c0f6)
+
+
 ## v0.0.7 (2026-07-01)
 
 Changes since v0.0.5
