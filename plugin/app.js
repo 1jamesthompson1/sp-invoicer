@@ -379,7 +379,7 @@
         profiles.forEach(p => {
           const option = document.createElement('option');
           option.value = p.id;
-          option.textContent = p.profileName || 'Unnamed Profile';
+          option.textContent = p.profileName;
           select.appendChild(option);
         });
         if (profiles.some(p => p.id === currentVal)) {
@@ -467,26 +467,25 @@
           return;
         }
 
-        profile.profileName = document.getElementById('my-profile-name').value || 'Unnamed Profile';
+        profile.profileName = document.getElementById('my-profile-name').value;
         profile.businessName = document.getElementById('my-name').value;
         profile.email = document.getElementById('my-email').value;
         profile.phone = document.getElementById('my-phone').value;
         profile.address = document.getElementById('my-address').value;
         profile.website = document.getElementById('my-website').value;
-        profile.taxIdLabel = document.getElementById('my-tax-id-label').value || 'Tax ID';
+        profile.taxIdLabel = document.getElementById('my-tax-id-label').value;
         profile.taxId = document.getElementById('my-tax-id').value;
-        profile.taxName = document.getElementById('my-tax-name').value || 'VAT';
-        profile.taxRate = parseFloat(document.getElementById('my-tax-rate').value) || 0;
+        profile.taxName = document.getElementById('my-tax-name').value;
+        profile.taxRate = parseFloat(document.getElementById('my-tax-rate').value);
         profile.taxEnabled = document.getElementById('my-tax-enabled').checked;
         profile.bankDetails = document.getElementById('my-bank').value;
-        profile.invoiceTitle = document.getElementById('my-invoice-title').value || 'Invoice';
-        profile.invoiceMessage = document.getElementById('my-invoice-message').value || 'Thank you for your business!';
-        profile.roundMode = document.getElementById('my-round-mode').value || 'round';
-        profile.roundEntry = parseInt(document.getElementById('my-round-entry').value) || 0;
-        profile.roundMerged = parseInt(document.getElementById('my-round-merged').value) || 0;
-        profile.roundProject = parseInt(document.getElementById('my-round-project').value) || 0;
-        const dueVal = parseInt(document.getElementById('my-due-days').value);
-        profile.dueDays = Number.isNaN(dueVal) ? 30 : dueVal;
+        profile.invoiceTitle = document.getElementById('my-invoice-title').value;
+        profile.invoiceMessage = document.getElementById('my-invoice-message').value;
+        profile.roundMode = document.getElementById('my-round-mode').value;
+        profile.roundEntry = parseInt(document.getElementById('my-round-entry').value);
+        profile.roundMerged = parseInt(document.getElementById('my-round-merged').value);
+        profile.roundProject = parseInt(document.getElementById('my-round-project').value);
+        profile.dueDays = parseInt(document.getElementById('my-due-days').value);
 
         await saveData();
         updateProfileSelect();
@@ -512,20 +511,20 @@
         document.getElementById('my-phone').value = profile.phone || '';
         document.getElementById('my-address').value = profile.address || '';
         document.getElementById('my-website').value = profile.website || '';
-        document.getElementById('my-tax-id-label').value = profile.taxIdLabel || 'Tax ID';
+        document.getElementById('my-tax-id-label').value = profile.taxIdLabel || '';
         document.getElementById('my-tax-id').value = profile.taxId || '';
-        document.getElementById('my-tax-name').value = profile.taxName || 'VAT';
-        document.getElementById('my-tax-rate').value = profile.taxRate || 0;
+        document.getElementById('my-tax-name').value = profile.taxName || '';
+        document.getElementById('my-tax-rate').value = profile.taxRate || '';
         document.getElementById('my-tax-enabled').checked = !!profile.taxEnabled;
         toggleProfileTaxFields();
         document.getElementById('my-bank').value = profile.bankDetails || '';
-        document.getElementById('my-invoice-title').value = profile.invoiceTitle || 'Invoice';
-        document.getElementById('my-invoice-message').value = profile.invoiceMessage || 'Thank you for your business!';
-        document.getElementById('my-round-mode').value = profile.roundMode || 'round';
+        document.getElementById('my-invoice-title').value = profile.invoiceTitle || '';
+        document.getElementById('my-invoice-message').value = profile.invoiceMessage || '';
+        document.getElementById('my-round-mode').value = profile.roundMode || '';
         document.getElementById('my-round-entry').value = profile.roundEntry || '';
         document.getElementById('my-round-merged').value = profile.roundMerged || '';
         document.getElementById('my-round-project').value = profile.roundProject || '';
-        document.getElementById('my-due-days').value = profile.dueDays ?? 30;
+        document.getElementById('my-due-days').value = profile.dueDays ?? '';
 
         // Show preview
         document.getElementById('mydetails-preview').style.display = 'block';
@@ -536,8 +535,8 @@
           ${profile.phone ? `📞 ${escapeHtml(profile.phone)}<br>` : ''}
           ${profile.address ? `<div style="margin-top: 8px; white-space: pre-line;">${escapeHtml(profile.address)}</div>` : ''}
           ${profile.website ? `<div style="margin-top: 8px;">🌐 ${escapeHtml(profile.website)}</div>` : ''}
-          ${profile.taxId ? `<div style="margin-top: 8px;"><strong>${escapeHtml(profile.taxIdLabel || 'Tax ID')}:</strong> ${escapeHtml(profile.taxId)}</div>` : ''}
-          ${profile.taxEnabled ? `<div style="margin-top: 4px;">${escapeHtml(profile.taxName || 'VAT')}: ${profile.taxRate}%</div>` : ''}
+          ${profile.taxId ? `<div style="margin-top: 8px;"><strong>${escapeHtml(profile.taxIdLabel)}:</strong> ${escapeHtml(profile.taxId)}</div>` : ''}
+          ${profile.taxEnabled ? `<div style="margin-top: 4px;">${escapeHtml(profile.taxName)}: ${profile.taxRate}%</div>` : ''}
           ${profile.bankDetails ? `<div style="margin-top: 8px;"><strong>Bank Details:</strong><br><span style="white-space: pre-line;">${escapeHtml(profile.bankDetails)}</span></div>` : ''}
           ${profile.invoiceTitle ? `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;"><strong>Invoice Title:</strong> ${escapeHtml(profile.invoiceTitle)}</div>` : ''}
           ${profile.invoiceMessage ? `<div style="margin-top: 8px;"><strong>Invoice Message:</strong> ${escapeHtml(profile.invoiceMessage)}</div>` : ''}
@@ -552,7 +551,7 @@
         profiles.forEach(p => {
           const option = document.createElement('option');
           option.value = p.id;
-          const label = p.id === getDefaultProfile().id ? `${p.profileName || 'Default'} (default)` : (p.profileName || 'Unnamed Profile');
+          const label = p.id === getDefaultProfile().id ? `${p.profileName} (default)` : p.profileName;
           option.textContent = label;
           select.appendChild(option);
         });
@@ -695,9 +694,9 @@
             .filter(p => p);
 
           const clientProfile = getClientProfile(client);
-          const profileLabel = ` — ${clientProfile.profileName || 'Default'} profile`;
+          const profileLabel = ` — ${clientProfile.profileName} profile`;
           const taxBadge = clientProfile.taxEnabled
-            ? `<span class="badge">+${clientProfile.taxRate}% ${escapeHtml(clientProfile.taxName || 'VAT')}</span>`
+            ? `<span class="badge">+${clientProfile.taxRate}% ${escapeHtml(clientProfile.taxName)}</span>`
             : '';
           return `
             <div class="client-item">
@@ -1153,7 +1152,7 @@
               break;
             }
             case 'custom-days': {
-              const daysBack = parseInt(document.getElementById('gen-custom-days').value) || 30;
+              const daysBack = parseInt(document.getElementById('gen-custom-days').value);
               cutoffDate.setDate(cutoffDate.getDate() - daysBack);
               periodLabel = `Last ${daysBack} days`;
               break;
@@ -1192,10 +1191,10 @@
 
           const profileForClient = getClientProfile(selectedClient);
           const getRoundingConfig = () => {
-            const roundMode = profileForClient.roundMode || 'round';
-            const entryRound = profileForClient.roundEntry || 0;
-            const mergedRound = profileForClient.roundMerged || 0;
-            const projectRound = profileForClient.roundProject || 0;
+            const roundMode = profileForClient.roundMode;
+            const entryRound = profileForClient.roundEntry;
+            const mergedRound = profileForClient.roundMerged;
+            const projectRound = profileForClient.roundProject;
             return { roundMode, entryRound, mergedRound, projectRound };
           };
 
@@ -1257,7 +1256,7 @@
           }
 
           // Apply rounding config to preview function
-          const dueDays = profileForClient.dueDays ?? 30;
+          const dueDays = profileForClient.dueDays;
           displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
