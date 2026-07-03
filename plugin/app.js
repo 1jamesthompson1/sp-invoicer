@@ -1314,7 +1314,8 @@
           return result * intervalHours;
         };
 
-        const lineItems = Object.entries(projectHours).map(([projectId, rawProjectHours]) => {
+        const lineItemData = [];
+        Object.entries(projectHours).forEach(([projectId, rawProjectHours]) => {
           const projectName = projectMap[projectId] || 'Unknown Project';
 
           // Get tasks for this project and merge same-named entries
@@ -1339,6 +1340,9 @@
           const sumBeforeProjectRound = mergedWithRounding.reduce((sum, t) => sum + t.hours, 0);
           const projectTotalHours = roundToInterval(sumBeforeProjectRound, roundingConfig.projectRound, roundingConfig.roundMode);
 
+          // Skip projects with negligible hours (below 0.005h ≈ 18 seconds)
+          if (projectTotalHours < 0.005) return;
+
           const projectRate = projectRates[projectId] || client.hourlyRate;
           const amount = projectTotalHours * projectRate;
           totalHours += projectTotalHours;
@@ -1352,7 +1356,7 @@
             descriptionContent += taskList;
           }
 
-          return `
+          lineItemData.push(`
             <tr>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee;">
                 ${descriptionContent}
@@ -1360,8 +1364,9 @@
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">${projectTotalHours.toFixed(2)}</td>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">$${projectRate.toFixed(2)}</td>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">$${amount.toFixed(2)}</td>
-            </tr>`;
-        }).join('\n');
+            </tr>`);
+        });
+        const lineItems = lineItemData.join('\n');
 
         const taxAmount = profile.taxEnabled ? (subtotal * profile.taxRate / 100) : 0;
         const total = subtotal + taxAmount;
