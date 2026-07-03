@@ -64,6 +64,7 @@
       let selectedProfileId = null;
       let clients = [];
       let projectAssignments = {};
+      let projectRates = {};
       let projects = [];
       let editingClientId = null;
       let generatedInvoices = []; // Store generated invoices with their numbers
@@ -296,6 +297,7 @@
             profiles = parsed.profiles || [];
             clients = parsed.clients || [];
             projectAssignments = parsed.projectAssignments || {};
+            projectRates = parsed.projectRates || {};
             generatedInvoices = parsed.generatedInvoices || [];
 
             // Migrate old single-profile format
@@ -342,6 +344,7 @@
             profiles: profiles,
             clients: clients,
             projectAssignments: projectAssignments,
+            projectRates: projectRates,
             generatedInvoices: generatedInvoices
           });
           await PluginAPI.persistDataSynced(data);
@@ -655,6 +658,7 @@
           for (const projectId in projectAssignments) {
             if (projectAssignments[projectId] === clientId) {
               delete projectAssignments[projectId];
+              delete projectRates[projectId];
             }
           }
 
@@ -765,9 +769,21 @@
         });
       });
 
+      // Set project rate override
+      window.setProjectRate = async function(projectId, value) {
+        const rate = parseFloat(value);
+        if (!isNaN(rate) && rate > 0) {
+          projectRates[projectId] = rate;
+        } else {
+          delete projectRates[projectId];
+        }
+        await saveData();
+      };
+
       // Remove project assignment
       async function removeAssignment(projectId) {
         delete projectAssignments[projectId];
+        delete projectRates[projectId];
         await saveData();
         renderProjectAssignments();
         renderClients();
@@ -795,19 +811,29 @@
           return;
         }
 
-        container.innerHTML = assignments.map(({ project, client, projectId }) => `
+        container.innerHTML = assignments.map(({ project, client, projectId }) => {
+          const overrideRate = projectRates[projectId];
+          return `
           <div class="client-item">
             <div class="client-info">
               <div class="client-name">${escapeHtml(project.title)}</div>
               <div class="client-details">
                 → Assigned to <strong>${escapeHtml(client.name)}</strong> ($${client.hourlyRate.toFixed(2)}/hr)
               </div>
+              <div class="client-details" style="margin-top: 6px;">
+                <label style="font-size: 12px; color: #666;">Rate override ($/hr):</label>
+                <input type="number" id="rate-${projectId}" min="0" step="0.01" placeholder="Use client rate"
+                  style="width: 120px; margin-left: 6px; padding: 3px 6px; font-size: 12px;"
+                  value="${overrideRate || ''}"
+                  onchange="setProjectRate('${projectId}', this.value)">
+                ${overrideRate ? `<span style="font-size: 11px; color: #888; margin-left: 6px;">($${parseFloat(overrideRate).toFixed(2)}/hr)</span>` : ''}
+              </div>
             </div>
             <div class="client-actions">
               <button class="danger" onclick="removeAssignment('${projectId}')">Remove</button>
             </div>
           </div>
-        `).join('');
+        `}).join('');
       }
 
       // Utility: escape HTML
@@ -1313,7 +1339,8 @@
           const sumBeforeProjectRound = mergedWithRounding.reduce((sum, t) => sum + t.hours, 0);
           const projectTotalHours = roundToInterval(sumBeforeProjectRound, roundingConfig.projectRound, roundingConfig.roundMode);
 
-          const amount = projectTotalHours * client.hourlyRate;
+          const projectRate = projectRates[projectId] || client.hourlyRate;
+          const amount = projectTotalHours * projectRate;
           totalHours += projectTotalHours;
           subtotal += amount;
 
@@ -1331,7 +1358,7 @@
                 ${descriptionContent}
               </td>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">${projectTotalHours.toFixed(2)}</td>
-              <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">$${client.hourlyRate.toFixed(2)}</td>
+              <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right;">$${projectRate.toFixed(2)}</td>
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">$${amount.toFixed(2)}</td>
             </tr>`;
         }).join('\n');
