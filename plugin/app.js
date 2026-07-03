@@ -1354,7 +1354,7 @@
           let descriptionContent = `<div style="font-weight: 600;">${projectName}</div>`;
           
           // Build task list with rounded merged values
-          const taskList = buildProjectTaskDetailsHtmlFromMerged(mergedWithRounding, allTasksById, itemizationLevel);
+          const taskList = buildProjectTaskDetailsHtml(tasksForProject, allTasksById, itemizationLevel);
           if (taskList) {
             descriptionContent += taskList;
           }
