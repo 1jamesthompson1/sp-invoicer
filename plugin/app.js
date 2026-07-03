@@ -410,6 +410,7 @@
         selectedProfileId = newProfile.id;
         await saveData();
         updateProfileSelect();
+        updateClientProfileSelect();
         renderMyDetails();
         PluginAPI.showSnack({
           msg: 'Profile added',
@@ -445,6 +446,7 @@
             });
             await saveData();
             updateProfileSelect();
+            updateClientProfileSelect();
             renderMyDetails();
             renderClients();
             PluginAPI.showSnack({
@@ -488,6 +490,7 @@
 
         await saveData();
         updateProfileSelect();
+        updateClientProfileSelect();
         renderMyDetails();
 
         PluginAPI.showSnack({
@@ -634,6 +637,7 @@
         document.getElementById('client-email').value = client.email || '';
         document.getElementById('client-address').value = client.address || '';
         document.getElementById('client-rate').value = client.hourlyRate;
+        updateClientProfileSelect();
         document.getElementById('client-profile-id').value = client.profileId || '';
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
@@ -691,7 +695,7 @@
             .filter(p => p);
 
           const clientProfile = getClientProfile(client);
-          const profileLabel = client.profileId ? ` — using "${clientProfile.profileName || 'Default'}" profile` : '';
+          const profileLabel = ` — ${clientProfile.profileName || 'Default'} profile`;
           const taxBadge = clientProfile.taxEnabled
             ? `<span class="badge">+${clientProfile.taxRate}% ${escapeHtml(clientProfile.taxName || 'VAT')}</span>`
             : '';
