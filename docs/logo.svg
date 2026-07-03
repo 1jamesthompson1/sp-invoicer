@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="128"
+     height="128"
+     viewBox="0 0 128 128">
+
+  <!-- Paper -->
+  <path d="M22 8H80L100 28V120H22Z"
+        fill="#ffffff"
+        stroke="#111"
+        stroke-width="4"
+        stroke-linejoin="round"/>
+
+  <!-- Folded corner (fill only — no stroke, so edges don't overlap with paper) -->
+  <path d="M80 8V28H100Z"
+        fill="#f3f3f3"
+        stroke="#111"
+        stroke-width="2"/>
+
+  <!-- Fold crease (drawn on top so it's fully visible) -->
+  <line x1="80" y1="8" x2="100" y2="28"
+        stroke="#111"
+        stroke-width="4"
+        stroke-linecap="round"/>
+
+  <!-- Title -->
+  <rect x="32" y="15" width="36" height="4" rx="2" fill="#111"/>
+
+  <!-- Header divider -->
+  <line x1="32" y1="24" x2="62" y2="24"
+        stroke="#777"
+        stroke-width="1"/>
+
+  <line x1="32" y1="27" x2="46" y2="27"
+        stroke="#777"
+        stroke-width="1"/>
+
+  <line x1="32" y1="30" x2="52" y2="30"
+        stroke="#777"
+        stroke-width="1"/>
+
+  <!-- Item 1 — Description · Hours · Price -->
+  <line x1="32" y1="48" x2="54" y2="48" stroke="#bbb" stroke-width="2"/>
+  <circle cx="62" cy="47" r="1.5" fill="#bbb"/>
+  <circle cx="66" cy="47" r="1.5" fill="#bbb"/>
+  <circle cx="70" cy="47" r="1.5" fill="#bbb"/>
+  <line x1="78" y1="48" x2="96" y2="48" stroke="#bbb" stroke-width="2"/>
+
+  <!-- Item 2 — Description · Hours · Price -->
+  <line x1="32" y1="74" x2="54" y2="74" stroke="#bbb" stroke-width="2"/>
+  <circle cx="62" cy="73" r="1.5" fill="#bbb"/>
+  <circle cx="66" cy="73" r="1.5" fill="#bbb"/>
+  <circle cx="70" cy="73" r="1.5" fill="#bbb"/>
+  <line x1="78" y1="74" x2="96" y2="74" stroke="#bbb" stroke-width="2"/>
+
+  <!-- Total line (dollar sign only on this line) -->
+  <text x="70" y="100" font-family="sans-serif" font-size="8" font-weight="bold" fill="#111">$</text>
+  <line x1="78" y1="98" x2="96" y2="98" stroke="#111" stroke-width="2"/>
+
+  <!-- Super Productivity badge (smaller, left side) -->
+  <g transform="translate(30 90) scale(0.30)">
+    <path
+      d="m61.6 32.119a29.578 29.707 0 0 1 -29.578 29.707 29.578 29.707 0 0 1 -29.578 -29.707 29.578 29.707 0 0 1 29.578 -29.707 29.578 29.707 0 0 1 29.578 29.707z"
+      fill="#0b77d2"/>
+    <path
+      d="m8.8372 32.373 25.726 21.665 25.356-46.561-27.159 34.621z"
+      fill="#ffffff"/>
+  </g>
+
+</svg>

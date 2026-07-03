@@ -58,16 +58,26 @@ const ui = readSrc('ui.html');
 let appJs = readSrc('app.js');
 const invoiceTemplate = readSrc('invoice-template.html');
 
+const logoPath = path.join(rootDir, 'docs', 'logo.svg');
+const logoSvg = fs.readFileSync(logoPath, 'utf8')
+  .replace(/\s*\n\s*/g, ' ')
+  .replace(/>\s+</g, '><')
+  .replace(/\s{2,}/g, ' ')
+  .trim();
+
 ensurePlaceholder(appJs, '__INVOICE_TEMPLATE__', 'src/app.js');
 ensurePlaceholder(template, '/* INLINE:styles */', 'src/index.template.html');
 ensurePlaceholder(template, '<!-- INLINE:ui -->', 'src/index.template.html');
 ensurePlaceholder(template, '/* INLINE:script */', 'src/index.template.html');
+ensurePlaceholder(ui, '<!-- INLINE:LOGO -->', 'src/ui.html');
+
+const uiWithLogo = ui.replace('<!-- INLINE:LOGO -->', logoSvg);
 
 appJs = appJs.replace('__INVOICE_TEMPLATE__', invoiceTemplate.replace(/\r\n/g, '\n'));
 
 const output = template
   .replace('/* INLINE:styles */', styles.trimEnd())
-  .replace('<!-- INLINE:ui -->', ui.trimEnd())
+  .replace('<!-- INLINE:ui -->', uiWithLogo.trimEnd())
   .replace('/* INLINE:script */', appJs.trimEnd())
   .trimEnd() + '\n';
 
