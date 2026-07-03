@@ -19,10 +19,22 @@
     <!-- My Details Tab -->
     <div class="tab-content" id="mydetails-tab">
       <div class="card">
-        <h2>Your Business Information</h2>
-        <p class="intro-text" style="margin-bottom: 20px;">This information will appear on your invoices.</p>
-        
+        <div class="profile-manager" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+          <h2 style="margin: 0;">Profiles</h2>
+          <select id="profile-select" style="flex: 1; min-width: 200px;"></select>
+          <button type="button" id="profile-add" class="secondary" style="white-space: nowrap;">+ Add</button>
+          <button type="button" id="profile-delete" class="danger" style="white-space: nowrap;">Delete</button>
+        </div>
+        <p class="intro-text" style="margin-bottom: 20px;">Each profile is a complete set of your details. Assign different profiles to different clients.</p>
+
         <form id="mydetails-form">
+          <div class="form-group">
+            <label>Profile Name *</label>
+            <input type="text" id="my-profile-name" required placeholder="e.g., Default, Business LLC, Freelance">
+          </div>
+
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Business Information</h3>
+
           <div class="form-group">
             <label>Business/Your Name *</label>
             <input type="text" id="my-name" required placeholder="e.g., John Smith Consulting">
@@ -118,7 +130,7 @@
             <div class="small-text">Number of days from invoice date. Set to 0 for no due date.</div>
           </div>
 
-          <button type="submit">Save My Details</button>
+          <button type="submit">Save Profile</button>
         </form>
       </div>
 
@@ -207,6 +219,16 @@
             <label>Days Until Due (override)</label>
             <input type="number" id="client-due-days" min="0" step="1" placeholder="Leave empty to use default">
             <div class="small-text">Override the default due date for this client only</div>
+          </div>
+
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Profile Override</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Use a different profile for this client's invoices. Leave as default to use the default profile.</div>
+
+          <div class="form-group">
+            <label>Profile</label>
+            <select id="client-profile-id">
+              <option value="">Use default profile</option>
+            </select>
           </div>
 
           <div class="button-group">

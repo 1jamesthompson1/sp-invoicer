@@ -60,7 +60,8 @@
 
       window.addEventListener('DOMContentLoaded', setupDarkModeToggle);
       // State management
-      let myDetails = null;
+      let profiles = [];
+      let selectedProfileId = null;
       let clients = [];
       let projectAssignments = {};
       let projects = [];
@@ -70,27 +71,61 @@
       let pendingInvoiceData = null;
       let hasPendingInvoiceSaved = false;
 
+      function createDefaultProfile() {
+        return {
+          id: Date.now().toString(),
+          profileName: 'Default',
+          businessName: '',
+          email: '',
+          phone: '',
+          address: '',
+          website: '',
+          taxIdLabel: 'Tax ID',
+          taxId: '',
+          bankDetails: '',
+          invoiceTitle: 'Invoice',
+          invoiceMessage: 'Thank you for your business!',
+          roundMode: 'round',
+          roundEntry: 0,
+          roundMerged: 0,
+          roundProject: 0,
+          dueDays: 30
+        };
+      }
+
+      function getDefaultProfile() {
+        return profiles[0] || null;
+      }
+
+      function getProfileById(id) {
+        return profiles.find(p => p.id === id) || null;
+      }
+
+      function getClientProfile(client) {
+        if (client.profileId) {
+          const profile = getProfileById(client.profileId);
+          if (profile) return profile;
+        }
+        return getDefaultProfile();
+      }
+
       // Initialize
       async function init() {
         await loadData();
         await loadProjects();
         
-        // Set default values if needed
-        if (!myDetails) {
-          myDetails = {};
+        // Ensure at least one profile
+        if (profiles.length === 0) {
+          profiles = [createDefaultProfile()];
+          await saveData();
         }
-        if (!myDetails.invoiceTitle) {
-          myDetails.invoiceTitle = 'Invoice';
-        }
-        if (!myDetails.invoiceMessage) {
-          myDetails.invoiceMessage = 'Thank you for your business!';
-        }
-        if (!myDetails.taxIdLabel) {
-          myDetails.taxIdLabel = 'Tax ID';
-        }
-        if (!myDetails.dueDays && myDetails.dueDays !== 0) {
-          myDetails.dueDays = 30;
-        }
+        
+        // Ensure profile ID
+        profiles.forEach(p => {
+          if (!p.id) p.id = Date.now().toString();
+        });
+        
+        selectedProfileId = profiles[0].id;
         
         // Create example client on first install if no clients exist
         if (!clients || clients.length === 0) {
@@ -103,7 +138,8 @@
             taxName: 'VAT',
             hourlyRate: 100,
             taxEnabled: true,
-            dueDays: null
+            dueDays: null,
+            profileId: ''
           }];
           await saveData();
         }
@@ -114,7 +150,8 @@
         updateProjectSelect();
         updateClientSelect();
         updateGenerateClientSelect();
-          renderInvoices();
+        updateClientProfileSelect();
+        renderInvoices();
         setDefaultInvoiceDate();
         setupPrintShortcut();
       }
@@ -253,10 +290,34 @@
           const data = await PluginAPI.loadSyncedData();
           if (data) {
             const parsed = JSON.parse(data);
-            myDetails = parsed.myDetails || null;
+            profiles = parsed.profiles || [];
             clients = parsed.clients || [];
             projectAssignments = parsed.projectAssignments || {};
             generatedInvoices = parsed.generatedInvoices || [];
+
+            // Migrate old single-profile format
+            if (parsed.myDetails && (!parsed.profiles || parsed.profiles.length === 0)) {
+              const old = parsed.myDetails;
+              profiles = [{
+                id: Date.now().toString(),
+                profileName: 'Default',
+                businessName: old.name || '',
+                email: old.email || '',
+                phone: old.phone || '',
+                address: old.address || '',
+                website: old.website || '',
+                taxIdLabel: old.taxIdLabel || 'Tax ID',
+                taxId: old.taxId || '',
+                bankDetails: old.bankDetails || '',
+                invoiceTitle: old.invoiceTitle || 'Invoice',
+                invoiceMessage: old.invoiceMessage || 'Thank you for your business!',
+                roundMode: old.roundMode || 'round',
+                roundEntry: old.roundEntry || 0,
+                roundMerged: old.roundMerged || 0,
+                roundProject: old.roundProject || 0,
+                dueDays: old.dueDays ?? 30
+              }];
+            }
           }
         } catch (error) {
           console.error('Error loading data:', error);
@@ -272,7 +333,7 @@
             await new Promise(resolve => setTimeout(resolve, 1000 - elapsed));
           }
           const data = JSON.stringify({
-            myDetails: myDetails,
+            profiles: profiles,
             clients: clients,
             projectAssignments: projectAssignments,
             generatedInvoices: generatedInvoices
@@ -301,6 +362,83 @@
         }
       }
 
+      // Update profile select dropdown
+      function updateProfileSelect() {
+        const select = document.getElementById('profile-select');
+        const currentVal = selectedProfileId;
+        select.innerHTML = '';
+        profiles.forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.id;
+          option.textContent = p.profileName || 'Unnamed Profile';
+          select.appendChild(option);
+        });
+        if (profiles.some(p => p.id === currentVal)) {
+          select.value = currentVal;
+        }
+      }
+
+      // Profile selector change
+      document.getElementById('profile-select').addEventListener('change', (e) => {
+        selectedProfileId = e.target.value;
+        renderMyDetails();
+      });
+
+      // Add profile
+      document.getElementById('profile-add').addEventListener('click', async () => {
+        const currentProfile = getProfileById(selectedProfileId);
+        const newProfile = currentProfile ? JSON.parse(JSON.stringify(currentProfile)) : createDefaultProfile();
+        newProfile.id = Date.now().toString();
+        newProfile.profileName = (currentProfile ? currentProfile.profileName + ' (Copy)' : 'New Profile');
+        profiles.push(newProfile);
+        selectedProfileId = newProfile.id;
+        await saveData();
+        updateProfileSelect();
+        renderMyDetails();
+        PluginAPI.showSnack({
+          msg: 'Profile added',
+          type: 'SUCCESS'
+        });
+      });
+
+      // Delete profile
+      document.getElementById('profile-delete').addEventListener('click', async () => {
+        if (profiles.length <= 1) {
+          PluginAPI.showSnack({
+            msg: 'Cannot delete the only profile',
+            type: 'WARNING'
+          });
+          return;
+        }
+        const confirmed = await PluginAPI.openDialog({
+          title: 'Delete Profile',
+          content: 'Are you sure you want to delete this profile? Clients using this profile will fall back to the default.',
+          okBtnLabel: 'Delete',
+          cancelBtnLabel: 'Cancel'
+        });
+        if (confirmed) {
+          const idx = profiles.findIndex(p => p.id === selectedProfileId);
+          if (idx > -1) {
+            profiles.splice(idx, 1);
+            selectedProfileId = profiles[0].id;
+            // Clear profileId from clients using deleted profile
+            clients.forEach(c => {
+              if (c.profileId && !profiles.some(p => p.id === c.profileId)) {
+                c.profileId = '';
+              }
+            });
+            await saveData();
+            updateProfileSelect();
+            renderMyDetails();
+            renderClients();
+            PluginAPI.showSnack({
+              msg: 'Profile deleted',
+              type: 'SUCCESS'
+            });
+          }
+        }
+      });
+
       // My Details form submission
       document.getElementById('mydetails-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -308,68 +446,92 @@
         const dueDaysInput = parseInt(document.getElementById('my-due-days').value, 10);
         const dueDays = Number.isNaN(dueDaysInput) ? 30 : Math.max(0, dueDaysInput);
         
-        myDetails = {
-          name: document.getElementById('my-name').value,
-          email: document.getElementById('my-email').value,
-          phone: document.getElementById('my-phone').value,
-          address: document.getElementById('my-address').value,
-          website: document.getElementById('my-website').value,
-          taxIdLabel: document.getElementById('my-tax-id-label').value || 'Tax ID',
-          taxId: document.getElementById('my-tax-id').value,
-          bankDetails: document.getElementById('my-bank').value,
-          invoiceTitle: document.getElementById('my-invoice-title').value || 'Invoice',
-          invoiceMessage: document.getElementById('my-invoice-message').value || 'Thank you for your business!',
-          roundMode: document.getElementById('my-round-mode').value || 'round',
-          roundEntry: parseInt(document.getElementById('my-round-entry').value) || 0,
-          roundMerged: parseInt(document.getElementById('my-round-merged').value) || 0,
-          roundProject: parseInt(document.getElementById('my-round-project').value) || 0,
-          dueDays: dueDays
-        };
+        const profile = getProfileById(selectedProfileId);
+        if (!profile) {
+          PluginAPI.showSnack({ msg: 'No profile selected', type: 'ERROR' });
+          return;
+        }
+
+        profile.profileName = document.getElementById('my-profile-name').value || 'Unnamed Profile';
+        profile.businessName = document.getElementById('my-name').value;
+        profile.email = document.getElementById('my-email').value;
+        profile.phone = document.getElementById('my-phone').value;
+        profile.address = document.getElementById('my-address').value;
+        profile.website = document.getElementById('my-website').value;
+        profile.taxIdLabel = document.getElementById('my-tax-id-label').value || 'Tax ID';
+        profile.taxId = document.getElementById('my-tax-id').value;
+        profile.bankDetails = document.getElementById('my-bank').value;
+        profile.invoiceTitle = document.getElementById('my-invoice-title').value || 'Invoice';
+        profile.invoiceMessage = document.getElementById('my-invoice-message').value || 'Thank you for your business!';
+        profile.roundMode = document.getElementById('my-round-mode').value || 'round';
+        profile.roundEntry = parseInt(document.getElementById('my-round-entry').value) || 0;
+        profile.roundMerged = parseInt(document.getElementById('my-round-merged').value) || 0;
+        profile.roundProject = parseInt(document.getElementById('my-round-project').value) || 0;
+        profile.dueDays = parseInt(document.getElementById('my-due-days').value) || 30;
 
         await saveData();
+        updateProfileSelect();
         renderMyDetails();
 
         PluginAPI.showSnack({
-          msg: 'Your details saved successfully',
+          msg: 'Profile saved successfully',
           type: 'SUCCESS'
         });
       });
 
       // Render my details
       function renderMyDetails() {
-        if (myDetails && myDetails.name) {
-          // Populate form
-          document.getElementById('my-name').value = myDetails.name || '';
-          document.getElementById('my-email').value = myDetails.email || '';
-          document.getElementById('my-phone').value = myDetails.phone || '';
-          document.getElementById('my-address').value = myDetails.address || '';
-          document.getElementById('my-website').value = myDetails.website || '';
-          document.getElementById('my-tax-id-label').value = myDetails.taxIdLabel || 'Tax ID';
-          document.getElementById('my-tax-id').value = myDetails.taxId || '';
-          document.getElementById('my-bank').value = myDetails.bankDetails || '';
-          document.getElementById('my-invoice-title').value = myDetails.invoiceTitle || 'Invoice';
-          document.getElementById('my-invoice-message').value = myDetails.invoiceMessage || 'Thank you for your business!';
-          document.getElementById('my-round-mode').value = myDetails.roundMode || 'round';
-          document.getElementById('my-round-entry').value = myDetails.roundEntry || '';
-          document.getElementById('my-round-merged').value = myDetails.roundMerged || '';
-          document.getElementById('my-round-project').value = myDetails.roundProject || '';
-          document.getElementById('my-due-days').value = myDetails.dueDays ?? 30;
+        const profile = getProfileById(selectedProfileId);
+        if (!profile) return;
 
-          // Show preview
-          document.getElementById('mydetails-preview').style.display = 'block';
-          const preview = document.getElementById('preview-content');
-          preview.innerHTML = `
-            <strong style="font-size: 18px; color: #333;">${escapeHtml(myDetails.name)}</strong><br>
-            ${myDetails.email ? `📧 ${escapeHtml(myDetails.email)}<br>` : ''}
-            ${myDetails.phone ? `📞 ${escapeHtml(myDetails.phone)}<br>` : ''}
-            ${myDetails.address ? `<div style="margin-top: 8px; white-space: pre-line;">${escapeHtml(myDetails.address)}</div>` : ''}
-            ${myDetails.website ? `<div style="margin-top: 8px;">🌐 ${escapeHtml(myDetails.website)}</div>` : ''}
-            ${myDetails.taxId ? `<div style="margin-top: 8px;"><strong>${escapeHtml(myDetails.taxIdLabel || 'Tax ID')}:</strong> ${escapeHtml(myDetails.taxId)}</div>` : ''}
-            ${myDetails.bankDetails ? `<div style="margin-top: 8px;"><strong>Bank Details:</strong><br><span style="white-space: pre-line;">${escapeHtml(myDetails.bankDetails)}</span></div>` : ''}
-            ${myDetails.invoiceTitle ? `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;"><strong>Invoice Title:</strong> ${escapeHtml(myDetails.invoiceTitle)}</div>` : ''}
-            ${myDetails.invoiceMessage ? `<div style="margin-top: 8px;"><strong>Invoice Message:</strong> ${escapeHtml(myDetails.invoiceMessage)}</div>` : ''}
-          `;
-        }
+        // Populate form
+        updateProfileSelect();
+        document.getElementById('my-profile-name').value = profile.profileName || '';
+        document.getElementById('my-name').value = profile.businessName || '';
+        document.getElementById('my-email').value = profile.email || '';
+        document.getElementById('my-phone').value = profile.phone || '';
+        document.getElementById('my-address').value = profile.address || '';
+        document.getElementById('my-website').value = profile.website || '';
+        document.getElementById('my-tax-id-label').value = profile.taxIdLabel || 'Tax ID';
+        document.getElementById('my-tax-id').value = profile.taxId || '';
+        document.getElementById('my-bank').value = profile.bankDetails || '';
+        document.getElementById('my-invoice-title').value = profile.invoiceTitle || 'Invoice';
+        document.getElementById('my-invoice-message').value = profile.invoiceMessage || 'Thank you for your business!';
+        document.getElementById('my-round-mode').value = profile.roundMode || 'round';
+        document.getElementById('my-round-entry').value = profile.roundEntry || '';
+        document.getElementById('my-round-merged').value = profile.roundMerged || '';
+        document.getElementById('my-round-project').value = profile.roundProject || '';
+        document.getElementById('my-due-days').value = profile.dueDays ?? 30;
+
+        // Show preview
+        document.getElementById('mydetails-preview').style.display = 'block';
+        const preview = document.getElementById('preview-content');
+        preview.innerHTML = `
+          <strong style="font-size: 18px; color: #333;">${escapeHtml(profile.businessName)}</strong><br>
+          ${profile.email ? `📧 ${escapeHtml(profile.email)}<br>` : ''}
+          ${profile.phone ? `📞 ${escapeHtml(profile.phone)}<br>` : ''}
+          ${profile.address ? `<div style="margin-top: 8px; white-space: pre-line;">${escapeHtml(profile.address)}</div>` : ''}
+          ${profile.website ? `<div style="margin-top: 8px;">🌐 ${escapeHtml(profile.website)}</div>` : ''}
+          ${profile.taxId ? `<div style="margin-top: 8px;"><strong>${escapeHtml(profile.taxIdLabel || 'Tax ID')}:</strong> ${escapeHtml(profile.taxId)}</div>` : ''}
+          ${profile.bankDetails ? `<div style="margin-top: 8px;"><strong>Bank Details:</strong><br><span style="white-space: pre-line;">${escapeHtml(profile.bankDetails)}</span></div>` : ''}
+          ${profile.invoiceTitle ? `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;"><strong>Invoice Title:</strong> ${escapeHtml(profile.invoiceTitle)}</div>` : ''}
+          ${profile.invoiceMessage ? `<div style="margin-top: 8px;"><strong>Invoice Message:</strong> ${escapeHtml(profile.invoiceMessage)}</div>` : ''}
+        `;
+      }
+
+      // Update client profile select
+      function updateClientProfileSelect() {
+        const select = document.getElementById('client-profile-id');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">Use default profile</option>';
+        profiles.forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.id;
+          const label = p.id === getDefaultProfile().id ? `${p.profileName || 'Default'} (default)` : (p.profileName || 'Unnamed Profile');
+          option.textContent = label;
+          select.appendChild(option);
+        });
+        select.value = currentVal;
       }
 
       // Tab switching
@@ -407,7 +569,8 @@
           roundEntry: parseInt(document.getElementById('client-round-entry').value) || 0,
           roundMerged: parseInt(document.getElementById('client-round-merged').value) || 0,
           roundProject: parseInt(document.getElementById('client-round-project').value) || 0,
-          dueDays: dueDaysValue ? parseInt(dueDaysValue) : null
+          dueDays: dueDaysValue ? parseInt(dueDaysValue) : null,
+          profileId: document.getElementById('client-profile-id').value || ''
         };
 
         if (editingClientId) {
@@ -432,6 +595,7 @@
         renderClients();
         updateClientSelect();
         updateGenerateClientSelect();
+        updateClientProfileSelect();
       });
 
       // Cancel edit button
@@ -444,6 +608,7 @@
         editingClientId = null;
         document.getElementById('client-form').reset();
         document.querySelector('#client-form button[type="submit"]').textContent = 'Save Client';
+        updateClientProfileSelect();
       }
 
       // Edit client
@@ -463,7 +628,8 @@
         document.getElementById('client-round-entry').value = client.roundEntry || '';
         document.getElementById('client-round-merged').value = client.roundMerged || '';
         document.getElementById('client-round-project').value = client.roundProject || '';
-        document.getElementById('client-due-days').value = client.dueDays ?? '';
+        document.getElementById('client-due-days').value = client.dueDays || '';
+        document.getElementById('client-profile-id').value = client.profileId || '';
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
         
@@ -518,6 +684,8 @@
             .map(([projectId, _]) => projects.find(p => p.id === projectId))
             .filter(p => p);
 
+          const clientProfile = getProfileById(client.profileId);
+          const profileLabel = clientProfile ? ` — using "${clientProfile.profileName || 'Default'}" profile` : '';
           return `
             <div class="client-item">
               <div class="client-info">
@@ -526,7 +694,7 @@
                   ${client.email ? `📧 ${escapeHtml(client.email)}<br>` : ''}
                   💵 $${client.hourlyRate.toFixed(2)}/hr
                   ${client.taxEnabled ? `<span class="badge">+${client.taxRate}% ${escapeHtml(client.taxName)}</span>` : ''}
-                  <div class="small-text">${assignedProjects.length} project(s) assigned</div>
+                  <div class="small-text">${assignedProjects.length} project(s) assigned${profileLabel}</div>
                 </div>
               </div>
               <div class="client-actions">
@@ -987,11 +1155,12 @@
           const projectHours = {};
           const projectTasks = {};
 
+          const profileForClient = getClientProfile(selectedClient);
           const getRoundingConfig = () => {
-            const roundMode = selectedClient.roundMode || myDetails.roundMode || 'round';
-            const entryRound = selectedClient.roundEntry > 0 ? selectedClient.roundEntry : (myDetails.roundEntry || 0);
-            const mergedRound = selectedClient.roundMerged > 0 ? selectedClient.roundMerged : (myDetails.roundMerged || 0);
-            const projectRound = selectedClient.roundProject > 0 ? selectedClient.roundProject : (myDetails.roundProject || 0);
+            const roundMode = selectedClient.roundMode || profileForClient.roundMode || 'round';
+            const entryRound = selectedClient.roundEntry > 0 ? selectedClient.roundEntry : (profileForClient.roundEntry || 0);
+            const mergedRound = selectedClient.roundMerged > 0 ? selectedClient.roundMerged : (profileForClient.roundMerged || 0);
+            const projectRound = selectedClient.roundProject > 0 ? selectedClient.roundProject : (profileForClient.roundProject || 0);
             return { roundMode, entryRound, mergedRound, projectRound };
           };
 
@@ -1053,11 +1222,11 @@
           }
 
           // Apply rounding config to preview function
-          // Get due days from client override or use user default
+          // Get due days from client override or use profile default
           const dueDays = selectedClient.dueDays !== null && selectedClient.dueDays !== undefined 
             ? selectedClient.dueDays 
-            : (myDetails.dueDays ?? 30);
-          displayInvoicePreview(myDetails, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
+            : (profileForClient.dueDays ?? 30);
+          displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
           console.error('Error generating invoice:', error);
@@ -1069,7 +1238,7 @@
       });
 
       // Display invoice preview
-      async function displayInvoicePreview(myDetails, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
+      async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
         const projectMap = {};
         projectsList.forEach(p => {
           projectMap[p.id] = p.title;
@@ -1096,10 +1265,10 @@
           dueDateFormatted = formatDateForDisplay(dueDate);
         }
         
-        const myEmailLink = myDetails.email ? `mailto:${myDetails.email}` : '';
+        const myEmailLink = profile.email ? `mailto:${profile.email}` : '';
         const clientEmailLink = client.email ? `mailto:${client.email}` : '';
-        const websiteUrl = myDetails.website
-          ? (myDetails.website.startsWith('http') ? myDetails.website : `https://${myDetails.website}`)
+        const websiteUrl = profile.website
+          ? (profile.website.startsWith('http') ? profile.website : `https://${profile.website}`)
           : '';
 
         const roundToInterval = (value, intervalMinutes, roundMode) => {
