@@ -19,10 +19,22 @@
     <!-- My Details Tab -->
     <div class="tab-content" id="mydetails-tab">
       <div class="card">
-        <h2>Your Business Information</h2>
-        <p class="intro-text" style="margin-bottom: 20px;">This information will appear on your invoices.</p>
-        
+        <div class="profile-manager" style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+          <h2 style="margin: 0;">Profiles</h2>
+          <select id="profile-select" style="flex: 1; min-width: 200px;"></select>
+          <button type="button" id="profile-add" class="secondary" style="white-space: nowrap;">+ Add</button>
+          <button type="button" id="profile-delete" class="danger" style="white-space: nowrap;">Delete</button>
+        </div>
+        <p class="intro-text" style="margin-bottom: 20px;">Each profile is a complete set of your details. Assign different profiles to different clients.</p>
+
         <form id="mydetails-form">
+          <div class="form-group">
+            <label>Profile Name *</label>
+            <input type="text" id="my-profile-name" required placeholder="e.g., Default, Business LLC, Freelance">
+          </div>
+
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Business Information</h3>
+
           <div class="form-group">
             <label>Business/Your Name *</label>
             <input type="text" id="my-name" required placeholder="e.g., John Smith Consulting">
@@ -48,39 +60,65 @@
             <input type="text" id="my-website" placeholder="https://yourwebsite.com">
           </div>
 
+          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Tax Information</h3>
+
           <div class="form-group">
-            <label>Tax ID Label (optional)</label>
+            <label>Tax ID Label</label>
             <input type="text" id="my-tax-id-label" placeholder="e.g., Tax ID, GST Number, ABN">
             <div class="small-text">What to call your Tax ID on invoices</div>
           </div>
 
           <div class="form-group">
-            <label>Tax ID / Business Number (optional)</label>
+            <label>Tax ID / Business Number</label>
             <input type="text" id="my-tax-id" placeholder="e.g., ABN, EIN, VAT Number">
           </div>
 
           <div class="form-group">
-            <label>Bank Details (optional)</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="my-tax-enabled">
+              <label for="my-tax-enabled" style="margin-bottom: 0;">Apply value-added tax (VAT/GST) to invoices</label>
+            </div>
+          </div>
+
+          <div id="my-tax-fields">
+            <div class="form-group">
+              <label>Tax Name</label>
+              <input type="text" id="my-tax-name" placeholder="e.g., VAT, GST, Sales Tax">
+            </div>
+
+            <div class="form-group">
+              <label>Tax Rate (%)</label>
+              <input type="number" id="my-tax-rate" min="0" max="100" step="0.01" placeholder="e.g., 20">
+            </div>
+          </div>
+
+          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Payment Details</h3>
+
+          <div class="form-group">
+            <label>Bank Details</label>
             <textarea id="my-bank" placeholder="Bank name, Account number, Routing number, etc."></textarea>
             <div class="small-text">This will appear on invoices for client payments</div>
           </div>
 
-          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Invoice Template Settings</h3>
-
           <div class="form-group">
-            <label>Invoice Title (optional)</label>
+            <label>Invoice Title</label>
             <input type="text" id="my-invoice-title" placeholder="e.g., Invoice" value="Invoice">
             <div class="small-text">The title shown at the top of your invoices</div>
           </div>
 
           <div class="form-group">
-            <label>Invoice End Message (optional)</label>
+            <label>Payment Message</label>
             <textarea id="my-invoice-message" placeholder="e.g., Thank you for your business!" style="min-height: 60px;"></textarea>
             <div class="small-text">Custom message that appears at the end of your invoices</div>
           </div>
 
+          <div class="form-group">
+            <label>Days Until Due *</label>
+            <input type="number" id="my-due-days" min="0" step="1" value="30" placeholder="e.g., 30">
+            <div class="small-text">Number of days from invoice date. Set to 0 for no due date.</div>
+          </div>
+
           <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Rounding Options</h3>
-          <div class="small-text" style="margin-bottom: 12px;">Default rounding settings for invoices. Can be overridden per client.</div>
 
           <div class="form-group">
             <label>Rounding Mode</label>
@@ -109,16 +147,7 @@
             <div class="small-text">Round final project total hours</div>
           </div>
 
-          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Default Due Date</h3>
-          <div class="small-text" style="margin-bottom: 12px;">Default number of days until payment is due. Can be overridden per client.</div>
-
-          <div class="form-group">
-            <label>Days Until Due *</label>
-            <input type="number" id="my-due-days" min="0" step="1" value="30" placeholder="e.g., 30">
-            <div class="small-text">Number of days from invoice date. Set to 0 for no due date.</div>
-          </div>
-
-          <button type="submit">Save My Details</button>
+          <button type="submit">Save Profile</button>
         </form>
       </div>
 
@@ -135,6 +164,9 @@
       <div class="card">
         <h2>Add New Client</h2>
         <form id="client-form">
+
+          <h3 style="color: #555; margin-top: 0; margin-bottom: 16px;">Client Details</h3>
+
           <div class="form-group">
             <label>Client Name *</label>
             <input type="text" id="client-name" required placeholder="e.g., Acme Corporation">
@@ -155,58 +187,14 @@
             <input type="number" id="client-rate" required min="0" step="0.01" placeholder="e.g., 75.00">
           </div>
 
-          <div class="form-group">
-            <label>Tax Name (e.g., GST, VAT)</label>
-            <input type="text" id="client-tax-name" placeholder="e.g., GST">
-          </div>
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Profile</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Select which profile to use for this client's invoices.</div>
 
           <div class="form-group">
-            <label>Tax Rate (%)</label>
-            <input type="number" id="client-tax-rate" min="0" max="100" step="0.01" placeholder="e.g., 15">
-          </div>
-
-          <div class="form-group">
-            <div class="checkbox-group">
-              <input type="checkbox" id="client-tax-enabled">
-              <label for="client-tax-enabled" style="margin-bottom: 0;">Apply tax to invoices</label>
-            </div>
-          </div>
-
-          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Rounding Overrides</h3>
-          <div class="small-text" style="margin-bottom: 12px;">Leave empty to use defaults from My Details.</div>
-
-          <div class="form-group">
-            <label>Rounding Mode</label>
-            <select id="client-round-mode">
-              <option value="">Use default</option>
-              <option value="round">Normal (0.5 rounds up)</option>
-              <option value="ceil">Always Up</option>
-              <option value="floor">Always Down</option>
+            <label>Profile</label>
+            <select id="client-profile-id">
+              <option value="">Use default profile</option>
             </select>
-          </div>
-
-          <div class="form-group">
-            <label>Round Individual Entries To (minutes)</label>
-            <input type="number" id="client-round-entry" min="0" step="1" placeholder="0 = use default">
-          </div>
-
-          <div class="form-group">
-            <label>Round Merged Entries To (minutes)</label>
-            <input type="number" id="client-round-merged" min="0" step="1" placeholder="0 = use default">
-          </div>
-
-          <div class="form-group">
-            <label>Round Project Total To (minutes)</label>
-            <input type="number" id="client-round-project" min="0" step="1" placeholder="0 = use default">
-          </div>
-
-          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Due Date Override</h3>
-          <div class="small-text" style="margin-bottom: 12px;">Leave empty to use default from My Details.</div>
-
-          <div class="form-group">
-            <label>Days Until Due (override)</label>
-            <input type="number" id="client-due-days" min="0" step="1" placeholder="Leave empty to use default">
-            <div class="small-text">Override the default due date for this client only</div>
           </div>
 
           <div class="button-group">
