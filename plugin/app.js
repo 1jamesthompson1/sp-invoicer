@@ -82,6 +82,9 @@
           website: '',
           taxIdLabel: 'Tax ID',
           taxId: '',
+          taxName: 'VAT',
+          taxRate: 0,
+          taxEnabled: false,
           bankDetails: '',
           invoiceTitle: 'Invoice',
           invoiceMessage: 'Thank you for your business!',
@@ -308,6 +311,9 @@
                 website: old.website || '',
                 taxIdLabel: old.taxIdLabel || 'Tax ID',
                 taxId: old.taxId || '',
+                taxName: old.taxName || 'VAT',
+                taxRate: old.taxRate || 0,
+                taxEnabled: old.taxEnabled || false,
                 bankDetails: old.bankDetails || '',
                 invoiceTitle: old.invoiceTitle || 'Invoice',
                 invoiceMessage: old.invoiceMessage || 'Thank you for your business!',
@@ -384,6 +390,13 @@
         renderMyDetails();
       });
 
+      // Toggle profile tax fields visibility
+      function toggleProfileTaxFields() {
+        const enabled = document.getElementById('my-tax-enabled').checked;
+        document.getElementById('my-tax-fields').style.display = enabled ? 'block' : 'none';
+      }
+      document.getElementById('my-tax-enabled').addEventListener('change', toggleProfileTaxFields);
+
       // Add profile
       document.getElementById('profile-add').addEventListener('click', async () => {
         const currentProfile = getProfileById(selectedProfileId);
@@ -443,9 +456,6 @@
       document.getElementById('mydetails-form').addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const dueDaysInput = parseInt(document.getElementById('my-due-days').value, 10);
-        const dueDays = Number.isNaN(dueDaysInput) ? 30 : Math.max(0, dueDaysInput);
-        
         const profile = getProfileById(selectedProfileId);
         if (!profile) {
           PluginAPI.showSnack({ msg: 'No profile selected', type: 'ERROR' });
@@ -460,6 +470,9 @@
         profile.website = document.getElementById('my-website').value;
         profile.taxIdLabel = document.getElementById('my-tax-id-label').value || 'Tax ID';
         profile.taxId = document.getElementById('my-tax-id').value;
+        profile.taxName = document.getElementById('my-tax-name').value || 'VAT';
+        profile.taxRate = parseFloat(document.getElementById('my-tax-rate').value) || 0;
+        profile.taxEnabled = document.getElementById('my-tax-enabled').checked;
         profile.bankDetails = document.getElementById('my-bank').value;
         profile.invoiceTitle = document.getElementById('my-invoice-title').value || 'Invoice';
         profile.invoiceMessage = document.getElementById('my-invoice-message').value || 'Thank you for your business!';
@@ -467,7 +480,8 @@
         profile.roundEntry = parseInt(document.getElementById('my-round-entry').value) || 0;
         profile.roundMerged = parseInt(document.getElementById('my-round-merged').value) || 0;
         profile.roundProject = parseInt(document.getElementById('my-round-project').value) || 0;
-        profile.dueDays = parseInt(document.getElementById('my-due-days').value) || 30;
+        const dueVal = parseInt(document.getElementById('my-due-days').value);
+        profile.dueDays = Number.isNaN(dueVal) ? 30 : dueVal;
 
         await saveData();
         updateProfileSelect();
@@ -494,6 +508,10 @@
         document.getElementById('my-website').value = profile.website || '';
         document.getElementById('my-tax-id-label').value = profile.taxIdLabel || 'Tax ID';
         document.getElementById('my-tax-id').value = profile.taxId || '';
+        document.getElementById('my-tax-name').value = profile.taxName || 'VAT';
+        document.getElementById('my-tax-rate').value = profile.taxRate || 0;
+        document.getElementById('my-tax-enabled').checked = !!profile.taxEnabled;
+        toggleProfileTaxFields();
         document.getElementById('my-bank').value = profile.bankDetails || '';
         document.getElementById('my-invoice-title').value = profile.invoiceTitle || 'Invoice';
         document.getElementById('my-invoice-message').value = profile.invoiceMessage || 'Thank you for your business!';
@@ -513,6 +531,7 @@
           ${profile.address ? `<div style="margin-top: 8px; white-space: pre-line;">${escapeHtml(profile.address)}</div>` : ''}
           ${profile.website ? `<div style="margin-top: 8px;">🌐 ${escapeHtml(profile.website)}</div>` : ''}
           ${profile.taxId ? `<div style="margin-top: 8px;"><strong>${escapeHtml(profile.taxIdLabel || 'Tax ID')}:</strong> ${escapeHtml(profile.taxId)}</div>` : ''}
+          ${profile.taxEnabled ? `<div style="margin-top: 4px;">${escapeHtml(profile.taxName || 'VAT')}: ${profile.taxRate}%</div>` : ''}
           ${profile.bankDetails ? `<div style="margin-top: 8px;"><strong>Bank Details:</strong><br><span style="white-space: pre-line;">${escapeHtml(profile.bankDetails)}</span></div>` : ''}
           ${profile.invoiceTitle ? `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #eee;"><strong>Invoice Title:</strong> ${escapeHtml(profile.invoiceTitle)}</div>` : ''}
           ${profile.invoiceMessage ? `<div style="margin-top: 8px;"><strong>Invoice Message:</strong> ${escapeHtml(profile.invoiceMessage)}</div>` : ''}
@@ -555,21 +574,12 @@
       document.getElementById('client-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const dueDaysValue = document.getElementById('client-due-days').value;
         const client = {
           id: editingClientId || Date.now().toString(),
           name: document.getElementById('client-name').value,
           email: document.getElementById('client-email').value,
           address: document.getElementById('client-address').value,
           hourlyRate: parseFloat(document.getElementById('client-rate').value),
-          taxName: document.getElementById('client-tax-name').value || 'Tax',
-          taxRate: parseFloat(document.getElementById('client-tax-rate').value) || 0,
-          taxEnabled: document.getElementById('client-tax-enabled').checked,
-          roundMode: document.getElementById('client-round-mode').value || '',
-          roundEntry: parseInt(document.getElementById('client-round-entry').value) || 0,
-          roundMerged: parseInt(document.getElementById('client-round-merged').value) || 0,
-          roundProject: parseInt(document.getElementById('client-round-project').value) || 0,
-          dueDays: dueDaysValue ? parseInt(dueDaysValue) : null,
           profileId: document.getElementById('client-profile-id').value || ''
         };
 
@@ -621,14 +631,6 @@
         document.getElementById('client-email').value = client.email || '';
         document.getElementById('client-address').value = client.address || '';
         document.getElementById('client-rate').value = client.hourlyRate;
-        document.getElementById('client-tax-name').value = client.taxName || '';
-        document.getElementById('client-tax-rate').value = client.taxRate || 0;
-        document.getElementById('client-tax-enabled').checked = client.taxEnabled;
-        document.getElementById('client-round-mode').value = client.roundMode || '';
-        document.getElementById('client-round-entry').value = client.roundEntry || '';
-        document.getElementById('client-round-merged').value = client.roundMerged || '';
-        document.getElementById('client-round-project').value = client.roundProject || '';
-        document.getElementById('client-due-days').value = client.dueDays || '';
         document.getElementById('client-profile-id').value = client.profileId || '';
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
@@ -684,8 +686,11 @@
             .map(([projectId, _]) => projects.find(p => p.id === projectId))
             .filter(p => p);
 
-          const clientProfile = getProfileById(client.profileId);
-          const profileLabel = clientProfile ? ` — using "${clientProfile.profileName || 'Default'}" profile` : '';
+          const clientProfile = getClientProfile(client);
+          const profileLabel = client.profileId ? ` — using "${clientProfile.profileName || 'Default'}" profile` : '';
+          const taxBadge = clientProfile.taxEnabled
+            ? `<span class="badge">+${clientProfile.taxRate}% ${escapeHtml(clientProfile.taxName || 'VAT')}</span>`
+            : '';
           return `
             <div class="client-item">
               <div class="client-info">
@@ -693,7 +698,7 @@
                 <div class="client-details">
                   ${client.email ? `📧 ${escapeHtml(client.email)}<br>` : ''}
                   💵 $${client.hourlyRate.toFixed(2)}/hr
-                  ${client.taxEnabled ? `<span class="badge">+${client.taxRate}% ${escapeHtml(client.taxName)}</span>` : ''}
+                  ${taxBadge}
                   <div class="small-text">${assignedProjects.length} project(s) assigned${profileLabel}</div>
                 </div>
               </div>
@@ -1157,10 +1162,10 @@
 
           const profileForClient = getClientProfile(selectedClient);
           const getRoundingConfig = () => {
-            const roundMode = selectedClient.roundMode || profileForClient.roundMode || 'round';
-            const entryRound = selectedClient.roundEntry > 0 ? selectedClient.roundEntry : (profileForClient.roundEntry || 0);
-            const mergedRound = selectedClient.roundMerged > 0 ? selectedClient.roundMerged : (profileForClient.roundMerged || 0);
-            const projectRound = selectedClient.roundProject > 0 ? selectedClient.roundProject : (profileForClient.roundProject || 0);
+            const roundMode = profileForClient.roundMode || 'round';
+            const entryRound = profileForClient.roundEntry || 0;
+            const mergedRound = profileForClient.roundMerged || 0;
+            const projectRound = profileForClient.roundProject || 0;
             return { roundMode, entryRound, mergedRound, projectRound };
           };
 
@@ -1222,10 +1227,7 @@
           }
 
           // Apply rounding config to preview function
-          // Get due days from client override or use profile default
-          const dueDays = selectedClient.dueDays !== null && selectedClient.dueDays !== undefined 
-            ? selectedClient.dueDays 
-            : (profileForClient.dueDays ?? 30);
+          const dueDays = profileForClient.dueDays ?? 30;
           displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
@@ -1334,7 +1336,7 @@
             </tr>`;
         }).join('\n');
 
-        const taxAmount = client.taxEnabled ? (subtotal * client.taxRate / 100) : 0;
+        const taxAmount = profile.taxEnabled ? (subtotal * profile.taxRate / 100) : 0;
         const total = subtotal + taxAmount;
 
         const invoiceHTML = `

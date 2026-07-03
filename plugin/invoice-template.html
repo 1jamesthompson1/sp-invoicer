@@ -132,9 +132,9 @@
       <span>Subtotal:</span>
       <span>$${subtotal.toFixed(2)}</span>
     </div>
-    ${client.taxEnabled ? `
+    ${profile.taxEnabled ? `
     <div class="totals-row">
-      <span>${client.taxName} (${client.taxRate}%):</span>
+      <span>${profile.taxName} (${profile.taxRate}%):</span>
       <span>$${taxAmount.toFixed(2)}</span>
     </div>` : ''}
     <div class="totals-row final">
