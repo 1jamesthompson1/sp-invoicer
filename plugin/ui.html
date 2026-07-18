@@ -262,15 +262,20 @@
           </div>
 
           <div class="form-group">
-            <label>Period *</label>
-            <select id="gen-period-select" required>
-              <option value="week">This Week</option>
-              <option value="month" selected>This Month</option>
-              <option value="last-month">Last Month</option>
-              <option value="year">This Year</option>
+            <label>Period Type *</label>
+            <select id="gen-period-type" required>
+              <option value="weekly">Weekly</option>
+              <option value="fortnightly">Fortnightly</option>
+              <option value="monthly" selected>Monthly</option>
+              <option value="yearly">Yearly</option>
               <option value="custom-days">Last N Days</option>
               <option value="custom-range">Custom Date Range</option>
             </select>
+          </div>
+
+          <div class="form-group" id="gen-period-instance-group">
+            <label>Period *</label>
+            <select id="gen-period-instance" required></select>
           </div>
 
           <div class="form-group" id="gen-custom-days-group" style="display: none;">

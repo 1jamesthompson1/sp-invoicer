@@ -9,9 +9,10 @@ Navigate to the **Generate Invoice** tab in the plugin.
 1. **Select a client** — Choose the client you want to invoice.
 2. **Set invoice date** — The date printed on the invoice.
 3. **Choose a billing period** — Select the time range to bill for:
-   - **[Current/Last] Week** — Last 7 days
-   - **[Current/Last] Month** — Based on calender months
-   - **[Current/Last] Year** — Based on calender years
+   - **Period type** — Choose from Weekly, Fortnightly, Monthly, Yearly, Last N Days, or Custom Range
+   - **Period** — Select the specific period instance (e.g., a particular ISO week, calendar month, or year)
+   - **Weekly** periods use **ISO weeks** (Monday to Sunday) with the ISO week number
+   - **Monthly/Yearly** periods use **calendar months/years**
    - **Last N days** — Specify a number of days to go back
    - **Custom Range** — Pick any start and end date
 4. **Choose itemization level** — How detailed should the invoice be?

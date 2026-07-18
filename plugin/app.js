@@ -157,6 +157,7 @@
         updateClientProfileSelect();
         renderInvoices();
         setDefaultInvoiceDate();
+        populatePeriodInstances();
         setupPrintShortcut();
       }
 
@@ -1059,13 +1060,129 @@
         });
       }
 
-      // Handle period select change
-      document.getElementById('gen-period-select').addEventListener('change', (e) => {
+      let periodInstancesMap = {};
+
+      function populatePeriodInstances() {
+        const periodType = document.getElementById('gen-period-type').value;
+        const instanceSelect = document.getElementById('gen-period-instance');
+        const instanceGroup = document.getElementById('gen-period-instance-group');
         const customDaysGroup = document.getElementById('gen-custom-days-group');
         const customRangeGroup = document.getElementById('gen-custom-range-group');
-        
-        customDaysGroup.style.display = e.target.value === 'custom-days' ? 'block' : 'none';
-        customRangeGroup.style.display = e.target.value === 'custom-range' ? 'block' : 'none';
+
+        customDaysGroup.style.display = 'none';
+        customRangeGroup.style.display = 'none';
+        instanceGroup.style.display = 'block';
+
+        if (periodType === 'custom-days') {
+          instanceGroup.style.display = 'none';
+          customDaysGroup.style.display = 'block';
+          return;
+        }
+        if (periodType === 'custom-range') {
+          instanceGroup.style.display = 'none';
+          customRangeGroup.style.display = 'block';
+          return;
+        }
+
+        const now = new Date();
+        const instances = [];
+        periodInstancesMap = {};
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+
+        const formatDate = (d) => {
+          return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        const getMonday = (d) => {
+          const date = new Date(d);
+          const day = date.getDay();
+          const diff = day === 0 ? -6 : 1 - day;
+          date.setDate(date.getDate() + diff);
+          date.setHours(0, 0, 0, 0);
+          return date;
+        };
+
+        const getSunday = (d) => {
+          const monday = getMonday(d);
+          const sunday = new Date(monday);
+          sunday.setDate(sunday.getDate() + 6);
+          sunday.setHours(23, 59, 59, 999);
+          return sunday;
+        };
+
+        const getISOWeekNumber = (d) => {
+          const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+          date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+          const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+          return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+        };
+
+        if (periodType === 'weekly') {
+          const currentMonday = getMonday(now);
+          for (let i = 0; i < 52; i++) {
+            const monday = new Date(currentMonday);
+            monday.setDate(monday.getDate() - (i * 7));
+            const sunday = getSunday(monday);
+            const weekNum = getISOWeekNumber(monday);
+            const year = monday.getFullYear();
+            const value = `${year}-W${String(weekNum).padStart(2, '0')}`;
+            const name = `Week ${weekNum}, ${year}`;
+            const dateRange = `${formatDate(monday)} - ${formatDate(sunday)}`;
+            const label = `${name} — ${dateRange}`;
+            instances.push({ value, label, name, dateRange, startDate: monday, endDate: sunday });
+          }
+        } else if (periodType === 'fortnightly') {
+          const currentMonday = getMonday(now);
+          for (let i = 0; i < 26; i++) {
+            const start = new Date(currentMonday);
+            start.setDate(start.getDate() - (i * 14));
+            const end = new Date(start);
+            end.setDate(end.getDate() + 13);
+            end.setHours(23, 59, 59, 999);
+            const startWeek = getISOWeekNumber(start);
+            const endWeek = getISOWeekNumber(end);
+            const year = start.getFullYear();
+            const value = `${year}-F${String(i + 1).padStart(2, '0')}`;
+            const name = `Fortnight ${startWeek}-${endWeek}, ${year}`;
+            const dateRange = `${formatDate(start)} - ${formatDate(end)}`;
+            const label = `${name} — ${dateRange}`;
+            instances.push({ value, label, name, dateRange, startDate: start, endDate: end });
+          }
+        } else if (periodType === 'monthly') {
+          for (let i = 0; i < 24; i++) {
+            const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+            const value = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+            const name = `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+            const dateRange = `${formatDate(start)} - ${formatDate(end)}`;
+            const label = `${name} — ${dateRange}`;
+            instances.push({ value, label, name, dateRange, startDate: start, endDate: end });
+          }
+        } else if (periodType === 'yearly') {
+          for (let i = 0; i < 10; i++) {
+            const year = now.getFullYear() - i;
+            const start = new Date(year, 0, 1);
+            const end = new Date(year, 11, 31, 23, 59, 59, 999);
+            const value = String(year);
+            const name = `${year}`;
+            const dateRange = `${formatDate(start)} - ${formatDate(end)}`;
+            const label = `${name} — ${dateRange}`;
+            instances.push({ value, label, name, dateRange, startDate: start, endDate: end });
+          }
+        }
+
+        instanceSelect.innerHTML = instances.map(inst =>
+          `<option value="${inst.value}">${inst.label}</option>`
+        ).join('');
+
+        instances.forEach(inst => {
+          periodInstancesMap[inst.value] = { startDate: inst.startDate, endDate: inst.endDate, name: inst.name, dateRange: inst.dateRange };
+        });
+      }
+
+      document.getElementById('gen-period-type').addEventListener('change', () => {
+        populatePeriodInstances();
       });
 
       // Set today's date as default
@@ -1081,7 +1198,7 @@
         try {
           const selectedClientId = document.getElementById('gen-client-select').value;
           const invoiceDate = document.getElementById('gen-invoice-date').value;
-          const periodType = document.getElementById('gen-period-select').value;
+          const periodType = document.getElementById('gen-period-type').value;
           const itemizationLevel = parseInt(document.getElementById('gen-itemization-select').value);
 
           if (!selectedClientId) {
@@ -1121,68 +1238,59 @@
               .map(task => task.parentId)
           );
 
-          // Calculate cutoff date
+          // Calculate cutoff date and period label
           let cutoffDate = new Date();
           let endDate = new Date();
           let periodLabel = '';
+          let periodDateRange = '';
 
-          switch (periodType) {
-            case 'week': {
-              const today = new Date();
-              cutoffDate.setDate(today.getDate() - today.getDay());
-              const weekNumber = Math.ceil((today - new Date(today.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));
-              periodLabel = `Week ${weekNumber}`;
-              break;
+          const formatPeriodDate = (d) => {
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+          };
+
+          if (periodType === 'custom-days') {
+            const daysBack = parseInt(document.getElementById('gen-custom-days').value);
+            cutoffDate.setDate(cutoffDate.getDate() - daysBack);
+            endDate = new Date();
+            endDate.setHours(23, 59, 59, 999);
+            const todayFormatted = formatPeriodDate(new Date());
+            const cutoffFormatted = formatPeriodDate(cutoffDate);
+            periodLabel = `Last ${daysBack} days`;
+            periodDateRange = `${cutoffFormatted} - ${todayFormatted}`;
+          } else if (periodType === 'custom-range') {
+            const startDateStr = document.getElementById('gen-start-date').value;
+            const endDateStr = document.getElementById('gen-end-date').value;
+
+            if (!startDateStr || !endDateStr) {
+              PluginAPI.showSnack({
+                msg: 'Please enter both start and end dates for custom range',
+                type: 'WARNING'
+              });
+              return;
             }
-            case 'year': {
-              const year = new Date().getFullYear();
-              cutoffDate = new Date(year, 0, 1);
-              periodLabel = `${year}`;
-              break;
+
+            cutoffDate = new Date(startDateStr);
+            endDate = new Date(endDateStr);
+            endDate.setHours(23, 59, 59);
+            periodLabel = 'Custom Range';
+            periodDateRange = `${formatPeriodDate(cutoffDate)} - ${formatPeriodDate(endDate)}`;
+          } else {
+            const instanceSelect = document.getElementById('gen-period-instance');
+            const selectedValue = instanceSelect.value;
+            const instanceData = periodInstancesMap[selectedValue];
+
+            if (!instanceData) {
+              PluginAPI.showSnack({
+                msg: 'Please select a period',
+                type: 'WARNING'
+              });
+              return;
             }
-            case 'last-month': {
-              const today = new Date();
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                 'July', 'August', 'September', 'October', 'November', 'December'];
-              const lastMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-              const lastMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-              cutoffDate = new Date(lastMonthYear, lastMonth, 1);
-              endDate = new Date(lastMonthYear, lastMonth + 1, 0, 23, 59, 59);
-              periodLabel = `${monthNames[lastMonth]} ${lastMonthYear}`;
-              break;
-            }
-            case 'custom-days': {
-              const daysBack = parseInt(document.getElementById('gen-custom-days').value);
-              cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-              periodLabel = `Last ${daysBack} days`;
-              break;
-            }
-            case 'custom-range': {
-              const startDateStr = document.getElementById('gen-start-date').value;
-              const endDateStr = document.getElementById('gen-end-date').value;
-              
-              if (!startDateStr || !endDateStr) {
-                PluginAPI.showSnack({
-                  msg: 'Please enter both start and end dates for custom range',
-                  type: 'WARNING'
-                });
-                return;
-              }
-              
-              cutoffDate = new Date(startDateStr);
-              endDate = new Date(endDateStr);
-              endDate.setHours(23, 59, 59);
-              periodLabel = `${startDateStr} to ${endDateStr}`;
-              break;
-            }
-            case 'month':
-            default: {
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                 'July', 'August', 'September', 'October', 'November', 'December'];
-              const today = new Date();
-              cutoffDate = new Date(today.getFullYear(), today.getMonth(), 1);
-              periodLabel = `${monthNames[today.getMonth()]} ${today.getFullYear()}`;
-            }
+
+            cutoffDate = instanceData.startDate;
+            endDate = instanceData.endDate;
+            periodLabel = instanceData.name;
+            periodDateRange = instanceData.dateRange;
           }
 
           // Calculate hours for client projects
@@ -1257,7 +1365,7 @@
 
           // Apply rounding config to preview function
           const dueDays = profileForClient.dueDays;
-          displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays);
+          displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
           console.error('Error generating invoice:', error);
@@ -1269,7 +1377,7 @@
       });
 
       // Display invoice preview
-      async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
+      async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
         const projectMap = {};
         projectsList.forEach(p => {
           projectMap[p.id] = p.title;
@@ -1389,6 +1497,7 @@ __INVOICE_TEMPLATE__
           date: invoiceDate,
           dueDate: dueDate,
           period: periodLabel,
+          periodDateRange: periodDateRange,
           total: total,
           createdAt: new Date().toISOString()
         };
