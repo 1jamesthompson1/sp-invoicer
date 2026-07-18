@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.9 (2026-07-18)
+
+Changes since v0.0.8
+
+- Add in better billing period support resolves #25 and resolves #22 (ef3602e)
+- Remove assets that aren't used (b8cce2b)
+
+
 ## v0.0.8 (2026-07-03)
 
 Changes since v0.0.7
