@@ -4,8 +4,6 @@ node_modules/
 # Build output
 dist/
 *.zip
-plugin/index.html
-plugin/plugin.js
 
 # IDE files
 .idea/

@@ -1,7 +1,7 @@
 // Host-side plugin code. Runs in the Super Productivity renderer (not the
 // sandboxed iframe), which has a 5 MB budget for plugin.js and where file
 // downloads are not blocked. The PDF library lives here rather than in
-// index.html because index.html is capped at 100 KB.
+// index.html because this is the context that can trigger a download.
 //
 // The UI iframe hands us a structured invoice model through
 // window.__spInvoicerGeneratePdf (same-origin, see plugin/app.js). We render
