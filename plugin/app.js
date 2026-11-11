@@ -71,6 +71,8 @@
       let lastPersistAt = 0;
       let pendingInvoiceData = null;
       let hasPendingInvoiceSaved = false;
+      let currentInvoiceFileName = 'invoice.pdf';
+      let currentInvoiceModel = null;
 
       function createDefaultProfile() {
         return {
@@ -89,6 +91,7 @@
           bankDetails: '',
           invoiceTitle: 'Invoice',
           invoiceMessage: 'Thank you for your business!',
+          fileNameTemplate: '{invoiceNumber}-{clientName}',
           roundMode: 'round',
           roundEntry: 0,
           roundMerged: 0,
@@ -154,6 +157,7 @@
         updateProjectSelect();
         updateClientSelect();
         updateGenerateClientSelect();
+        syncGenFileNameTemplate();
         updateClientProfileSelect();
         renderInvoices();
         setDefaultInvoiceDate();
@@ -320,6 +324,7 @@
                 bankDetails: old.bankDetails || '',
                 invoiceTitle: old.invoiceTitle || 'Invoice',
                 invoiceMessage: old.invoiceMessage || 'Thank you for your business!',
+                fileNameTemplate: '{invoiceNumber}-{clientName}',
                 roundMode: old.roundMode || 'round',
                 roundEntry: old.roundEntry || 0,
                 roundMerged: old.roundMerged || 0,
@@ -583,6 +588,7 @@
         const client = {
           id: editingClientId || Date.now().toString(),
           name: document.getElementById('client-name').value,
+          shortName: document.getElementById('client-short-name').value.trim(),
           email: document.getElementById('client-email').value,
           address: document.getElementById('client-address').value,
           hourlyRate: parseFloat(document.getElementById('client-rate').value),
@@ -634,6 +640,7 @@
 
         editingClientId = clientId;
         document.getElementById('client-name').value = client.name;
+        document.getElementById('client-short-name').value = client.shortName || '';
         document.getElementById('client-email').value = client.email || '';
         document.getElementById('client-address').value = client.address || '';
         document.getElementById('client-rate').value = client.hourlyRate;
@@ -702,7 +709,7 @@
           return `
             <div class="client-item">
               <div class="client-info">
-                <div class="client-name">${escapeHtml(client.name)}</div>
+                <div class="client-name">${escapeHtml(client.name)}${client.shortName ? ` <span class="small-text">(${escapeHtml(client.shortName)})</span>` : ''}</div>
                 <div class="client-details">
                   ${client.email ? `📧 ${escapeHtml(client.email)}<br>` : ''}
                   💵 $${client.hourlyRate.toFixed(2)}/hr
@@ -925,26 +932,22 @@
         }));
       }
 
-      function renderNestedTaskNode(node, depth) {
-        const paddingLeft = 20 + (depth * 18);
+      function collectNestedTaskLines(node, depth, lines) {
         const hasChildren = node.children && node.children.length > 0;
         const label = hasChildren
-          ? `${escapeHtml(node.title)} (Task total: ${node.hours.toFixed(2)}h)`
-          : `${escapeHtml(node.title)} (${node.hours.toFixed(2)}h)`;
-        let html = `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: ${paddingLeft}px;">• ${label}</div>`;
+          ? `${node.title} (Task total: ${node.hours.toFixed(2)}h)`
+          : `${node.title} (${node.hours.toFixed(2)}h)`;
+        lines.push({ text: `• ${label}`, level: depth });
 
         node.children
           .sort((a, b) => b.hours - a.hours)
-          .forEach(child => {
-            html += renderNestedTaskNode(child, depth + 1);
-          });
-
-        return html;
+          .forEach(child => collectNestedTaskLines(child, depth + 1, lines));
       }
 
-      function buildProjectTaskDetailsHtml(projectTasksForProject, allTasksById, itemizationLevel) {
+      // Structured task detail lines, shared by the HTML preview and the PDF.
+      function buildProjectTaskDetailLines(projectTasksForProject, allTasksById, itemizationLevel) {
         if (!projectTasksForProject || projectTasksForProject.length === 0 || itemizationLevel === 1) {
-          return '';
+          return [];
         }
 
         if (itemizationLevel === 2) {
@@ -971,8 +974,7 @@
 
           return Object.values(mainTaskBuckets)
             .sort((a, b) => b.hours - a.hours)
-            .map(task => `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: 20px;">• ${escapeHtml(task.title)} (${task.hours.toFixed(2)}h)</div>`)
-            .join('\n');
+            .map(task => ({ text: `• ${task.title} (${task.hours.toFixed(2)}h)`, level: 0 }));
         }
 
         const nodeMap = {};
@@ -1025,7 +1027,15 @@
         const mergedRootNodes = mergeSiblingNodesByTitle(rootNodes)
           .sort((a, b) => b.hours - a.hours);
 
-        return mergedRootNodes.map(root => renderNestedTaskNode(root, 0)).join('\n');
+        const lines = [];
+        mergedRootNodes.forEach(root => collectNestedTaskLines(root, 0, lines));
+        return lines;
+      }
+
+      function buildProjectTaskDetailsHtml(projectTasksForProject, allTasksById, itemizationLevel) {
+        return buildProjectTaskDetailLines(projectTasksForProject, allTasksById, itemizationLevel)
+          .map(line => `<div style="font-size: 12px; color: #666; padding: 2px 0; padding-left: ${20 + (line.level * 18)}px;">${escapeHtml(line.text)}</div>`)
+          .join('\n');
       }
 
       function buildProjectTaskDetailsHtmlFromMerged(mergedTasks, allTasksById, itemizationLevel) {
@@ -1337,7 +1347,6 @@
               return;
             }
 
-            // Apply entry rounding
             const entryRoundedHours = roundToInterval(rawHours, roundingConfig.entryRound, roundingConfig.roundMode);
 
             if (!projectHours[task.projectId]) {
@@ -1365,6 +1374,7 @@
 
           // Apply rounding config to preview function
           const dueDays = profileForClient.dueDays;
+
           displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays);
 
         } catch (error) {
@@ -1375,6 +1385,183 @@
           });
         }
       });
+
+      // --- PDF download ---------------------------------------------------
+
+      function sanitizeFileNamePart(value) {
+        return String(value || '')
+          .normalize('NFKD')
+          .replace(/[^\w\s-]/g, '')
+          .trim()
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '');
+      }
+
+      const FILE_NAME_MAX_LENGTH = 150;
+
+      const FILE_NAME_PLACEHOLDERS = ['invoiceNumber', 'clientName', 'clientShortName', 'businessName', 'invoiceTitle', 'date', 'dueDate', 'period'];
+      const FILE_NAME_EXAMPLE_VARS = {
+        invoiceNumber: 'INV-202610-00042',
+        clientName: 'Acme Corp',
+        clientShortName: 'AC',
+        businessName: 'Your Business',
+        invoiceTitle: 'Invoice',
+        date: '2026-10-12',
+        dueDate: '2026-11-11',
+        period: 'October 2026'
+      };
+
+      // Very small template language for the download file name. Unknown
+      // placeholders and empty results are hard errors — no silent fallback.
+      function buildInvoiceFileName(template, vars) {
+        if (typeof template !== 'string' || !template.trim()) {
+          throw new Error('File name template is empty.');
+        }
+
+        const unknown = [];
+        const replaced = template.replace(/\{([^}]*)\}/g, (match, key) => {
+          if (!FILE_NAME_PLACEHOLDERS.includes(key)) {
+            unknown.push(key);
+            return match;
+          }
+          const value = vars[key];
+          return value === undefined || value === null ? '' : String(value);
+        });
+
+        if (unknown.length > 0) {
+          const list = unknown.map(k => `{${k}}`).join(', ');
+          throw new Error(
+            `Unknown placeholder(s): ${list}. Valid: ${FILE_NAME_PLACEHOLDERS.map(k => `{${k}}`).join(', ')}.`
+          );
+        }
+
+        const base = sanitizeFileNamePart(replaced);
+        if (!base) {
+          throw new Error('File name template produced an empty name.');
+        }
+        if (base.length > FILE_NAME_MAX_LENGTH) {
+          throw new Error(
+            `File name is too long (${base.length} characters, max ${FILE_NAME_MAX_LENGTH}). Shorten the template or use fewer placeholders.`
+          );
+        }
+        return `${base}.pdf`;
+      }
+
+      function updateGenFileNamePreview() {
+        const input = document.getElementById('gen-file-name-template');
+        const preview = document.getElementById('gen-file-name-preview');
+        if (!input || !preview) return;
+        try {
+          const name = buildInvoiceFileName(input.value, FILE_NAME_EXAMPLE_VARS);
+          preview.textContent = `Example: ${name}`;
+          preview.style.color = '';
+        } catch (error) {
+          preview.textContent = error.message;
+          preview.style.color = '#c0392b';
+        }
+      }
+
+      // Fill the Generate form's template from the selected client's profile.
+      function syncGenFileNameTemplate() {
+        const select = document.getElementById('gen-client-select');
+        const input = document.getElementById('gen-file-name-template');
+        if (!select || !input) return;
+        const client = clients.find(c => c.id === select.value);
+        const profile = client ? getClientProfile(client) : getDefaultProfile();
+        input.value = (profile && profile.fileNameTemplate) || '{invoiceNumber}-{clientName}';
+        updateGenFileNamePreview();
+      }
+
+      // Size the preview iframe to its content so the invoice flows with the
+      // page instead of scrolling inside its own box.
+      function resizeInvoicePreviewFrame() {
+        const iframe = document.querySelector('#invoice-iframe-container iframe');
+        if (!iframe) return;
+        try {
+          const doc = iframe.contentDocument;
+          if (!doc || !doc.body) return;
+          const height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+          if (height > 0) {
+            iframe.style.height = `${height}px`;
+          }
+        } catch (error) { /* ignore */ }
+      }
+
+      window.addEventListener('resize', resizeInvoicePreviewFrame);
+
+      // The heavy PDF libraries live in plugin.js, which has a 5 MB budget and
+      // runs in the host renderer (index.html is capped at 100 KB). This iframe
+      // only calls into the host and hands it the rendered invoice markup.
+      function getHostPdfGenerator() {
+        const candidates = [];
+        try {
+          if (window.parent && window.parent !== window) candidates.push(window.parent);
+        } catch (error) { /* cross-origin guard */ }
+        try {
+          if (window.top && window.top !== window) candidates.push(window.top);
+        } catch (error) { /* cross-origin guard */ }
+
+        for (const candidate of candidates) {
+          try {
+            if (candidate && typeof candidate.__spInvoicerGeneratePdf === 'function') {
+              return candidate.__spInvoicerGeneratePdf;
+            }
+          } catch (error) { /* cross-origin guard */ }
+        }
+        return null;
+      }
+
+      async function downloadInvoicePdf() {
+        const button = document.getElementById('download-invoice-pdf');
+        const invoiceModel = currentInvoiceModel;
+        const generatePdf = getHostPdfGenerator();
+
+        if (!invoiceModel) {
+          PluginAPI.showSnack({
+            msg: 'Generate an invoice before downloading a PDF.',
+            type: 'ERROR'
+          });
+          return;
+        }
+        if (!generatePdf) {
+          PluginAPI.showSnack({
+            msg: 'PDF helper unavailable — try reloading the plugin.',
+            type: 'ERROR'
+          });
+          return;
+        }
+
+        const originalLabel = button ? button.textContent : '';
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Generating PDF…';
+        }
+
+        try {
+          await generatePdf({ filename: currentInvoiceFileName, model: invoiceModel });
+          await finalizeInvoiceSave();
+          PluginAPI.showSnack({
+            msg: `Saved ${currentInvoiceFileName}`,
+            type: 'SUCCESS'
+          });
+        } catch (error) {
+          console.error('Error generating PDF:', error);
+          PluginAPI.showSnack({
+            msg: 'Failed to generate PDF: ' + error.message,
+            type: 'ERROR'
+          });
+        } finally {
+          if (button) {
+            button.disabled = false;
+            button.textContent = originalLabel;
+          }
+        }
+      }
+
+      document.getElementById('download-invoice-pdf').addEventListener('click', downloadInvoicePdf);
+      document.getElementById('gen-file-name-template').addEventListener('input', updateGenFileNamePreview);
+      document.getElementById('gen-client-select').addEventListener('change', syncGenFileNameTemplate);
 
       // Display invoice preview
       async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
@@ -1426,6 +1613,7 @@
         };
 
         const lineItemData = [];
+        const lineItemsModel = [];
         Object.entries(projectHours).forEach(([projectId, rawProjectHours]) => {
           const projectName = projectMap[projectId] || 'Unknown Project';
 
@@ -1459,13 +1647,22 @@
           totalHours += projectTotalHours;
           subtotal += amount;
 
+          const detailLines = buildProjectTaskDetailLines(tasksForProject, allTasksById, itemizationLevel);
           let descriptionContent = `<div style="font-weight: 600;">${projectName}</div>`;
-          
+
           // Build task list with rounded merged values
           const taskList = buildProjectTaskDetailsHtml(tasksForProject, allTasksById, itemizationLevel);
           if (taskList) {
             descriptionContent += taskList;
           }
+
+          lineItemsModel.push({
+            description: projectName,
+            details: detailLines,
+            hours: projectTotalHours,
+            rate: projectRate,
+            amount: amount
+          });
 
           lineItemData.push(`
             <tr>
@@ -1477,6 +1674,7 @@
               <td style="padding: 12px 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: 600;">$${amount.toFixed(2)}</td>
             </tr>`);
         });
+
         const lineItems = lineItemData.join('\n');
 
         const taxAmount = profile.taxEnabled ? (subtotal * profile.taxRate / 100) : 0;
@@ -1485,6 +1683,76 @@
         const invoiceHTML = `
 __INVOICE_TEMPLATE__
 `;
+
+        // Structured invoice model — sent to plugin.js (host side) to build the
+        // text-based PDF. The HTML below is only used for the on-screen preview.
+        const invoiceModel = {
+          invoiceTitle: profile.invoiceTitle || 'Invoice',
+          invoiceNumber: invoiceNumber,
+          business: {
+            name: profile.businessName || '',
+            email: profile.email || '',
+            phone: profile.phone || '',
+            address: profile.address || '',
+            website: profile.website || '',
+            taxIdLabel: profile.taxIdLabel || 'Tax ID',
+            taxId: profile.taxId || ''
+          },
+          client: {
+            name: client.name || '',
+            email: client.email || '',
+            address: client.address || ''
+          },
+          dateFormatted: invoiceDateFormatted,
+          dueDateFormatted: dueDateFormatted,
+          period: periodLabel,
+          periodDateRange: periodDateRange,
+          totalHoursLabel: totalHours.toFixed(2),
+          lineItems: lineItemsModel,
+          subtotal: subtotal,
+          taxEnabled: !!profile.taxEnabled,
+          taxName: profile.taxName || 'Tax',
+          taxRate: profile.taxRate || 0,
+          taxAmount: taxAmount,
+          total: total,
+          bankDetails: profile.bankDetails || '',
+          invoiceMessage: profile.invoiceMessage || ''
+        };
+
+        // Resolve the download file name from the Generate form template.
+        // Hard-fail on an invalid template instead of silently falling back.
+        const fileNameTemplate = document.getElementById('gen-file-name-template').value;
+        const clientShortName = (client.shortName || '').trim();
+        const abortPreview = (message) => {
+          PluginAPI.showSnack({ msg: message, type: 'ERROR' });
+          const previewEl = document.getElementById('invoice-preview');
+          if (previewEl) previewEl.style.display = 'none';
+          const labelEl = document.getElementById('invoice-file-name');
+          if (labelEl) labelEl.textContent = '';
+        };
+        if (fileNameTemplate.includes('{clientShortName}') && !clientShortName) {
+          abortPreview('This client has no Short Name. Set one in the Clients tab, or use {clientName} in the file name template.');
+          return;
+        }
+        try {
+          currentInvoiceFileName = buildInvoiceFileName(fileNameTemplate, {
+            invoiceNumber: invoiceNumber,
+            clientName: client.name,
+            clientShortName: clientShortName,
+            businessName: profile.businessName,
+            invoiceTitle: profile.invoiceTitle || 'Invoice',
+            date: invoiceDate,
+            dueDate: dueDate,
+            period: periodLabel
+          });
+        } catch (error) {
+          abortPreview('Invalid file name template: ' + error.message);
+          return;
+        }
+
+        // Remember the template on the client's profile.
+        profile.fileNameTemplate = fileNameTemplate;
+        saveData();
 
         // Show preview
         document.getElementById('invoice-preview').style.display = 'block';
@@ -1503,19 +1771,29 @@ __INVOICE_TEMPLATE__
         };
         pendingInvoiceData = invoiceData;
         hasPendingInvoiceSaved = false;
-        
+        currentInvoiceModel = invoiceModel;
+
+        const fileNameLabel = document.getElementById('invoice-file-name');
+        if (fileNameLabel) fileNameLabel.textContent = currentInvoiceFileName;
+
         // Create iframe with the invoice
         const iframe = document.createElement('iframe');
         iframe.style.width = '100%';
-        iframe.style.height = '800px';
+        iframe.style.height = '200px';
         iframe.style.border = '1px solid #ddd';
         iframe.style.borderRadius = '4px';
+        iframe.style.display = 'block';
         container.innerHTML = '';
         container.appendChild(iframe);
-        
+
         iframe.onload = () => {
           iframe.contentDocument.write(invoiceHTML);
           iframe.contentDocument.close();
+
+          // Grow the frame to fit the invoice so there is no inner scrollbar.
+          resizeInvoicePreviewFrame();
+          setTimeout(resizeInvoicePreviewFrame, 60);
+          setTimeout(resizeInvoicePreviewFrame, 300);
 
           if (iframe.contentWindow) {
             iframe.contentWindow.addEventListener('beforeprint', () => {
@@ -1523,11 +1801,11 @@ __INVOICE_TEMPLATE__
             });
           }
         };
-        
+
         iframe.src = 'about:blank';
 
         PluginAPI.showSnack({
-          msg: `Preview ready. Invoice #${invoiceNumber} will be saved when you print or save to PDF.`,
+          msg: `Preview ready. Invoice #${invoiceNumber} is ready to download as PDF.`,
           type: 'SUCCESS'
         });
       }

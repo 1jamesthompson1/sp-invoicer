@@ -18,7 +18,7 @@ Generate professional client invoices from your tracked time in [Super Productiv
 - Flexible billing periods: week, month, year, custom date range
 - Three itemization levels: project totals, main task breakdown, nested subtask hierarchy
 - Tasks with identical names are automatically merged
-- Export invoices as PDF
+- Download invoices as PDF — automatically named per invoice and client
 - Store invoice metadata (number, date, total, period) for reference
 - Sync invoice details, client data, and project assignments across devices
 

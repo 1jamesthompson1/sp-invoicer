@@ -27,6 +27,7 @@ Go to **Clients** and add at least one client. Each invoice is generated for a s
 
 For each client you can set:
 - **Client Name** — Required
+- **Short Name** — Optional abbreviation (e.g. `TAIC`), usable in the invoice file name via `{clientShortName}`
 - **Contact Details** — Email, phone, address (optional)
 - **Hourly Rate** — Required. The rate used when calculating invoice totals.
 - **User details profile** — Select which of your user details profiles to use for this client.

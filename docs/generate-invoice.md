@@ -19,12 +19,34 @@ Navigate to the **Generate Invoice** tab in the plugin.
    - **Project totals only** — One line per project
    - **Main task breakdown** — Line items per top-level task
    - **Nested hierarchy** — Full parent/subtask tree
-5. **Generate preview** — Review the invoice before finalising.
-6. **Print / Save as PDF** — Use your browser's print dialog to save as PDF.
+5. **Set the file name** — Edit the **File Name Template** field (see [PDF File Name](#pdf-file-name)).
+6. **Preview Invoice** — Click **Preview Invoice** to render the invoice inline (no inner scroll box). The **Download PDF** button appears at the top-right of the preview, showing the file name it will use.
+7. **Download PDF** — Click **Download PDF** to save the invoice to your downloads folder. The PDF is text-based, so its text is selectable and searchable.
+
+## PDF File Name
+
+The **Generate Invoice** form has a **File Name Template** field. It is pre-filled from the selected client's profile and saved back to that profile when you generate, so your choice is remembered. It supports these placeholders:
+
+| Placeholder | Value |
+|-------------|-------|
+| `{invoiceNumber}` | e.g. `INV-202610-00042` |
+| `{clientName}` | Client name |
+| `{clientShortName}` | Client short name (set it in the Clients tab) |
+| `{businessName}` | Your business name |
+| `{invoiceTitle}` | Invoice title (e.g. `Invoice`) |
+| `{date}` | Invoice date (`YYYY-MM-DD`) |
+| `{dueDate}` | Due date (`YYYY-MM-DD`) |
+| `{period}` | Billing period label (e.g. `October 2026`) |
+
+The default is `{invoiceNumber}-{clientName}`, which produces e.g. `INV-202610-00042-Acme-Corp.pdf`. A live example is shown under the field, and `.pdf` is added automatically.
+
+Each client can have an optional **Short Name** (e.g. `TAIC`) for the `{clientShortName}` placeholder — useful when full client names are long.
+
+Templates are validated strictly: an empty template, an unknown placeholder, a resolved name longer than 150 characters, or using `{clientShortName}` for a client with no short name is an error (shown in red under the field and as a notification), and the invoice is **not** generated — there is no silent fallback or truncation.
 
 ## Invoice Storage
 
-When you print or save an invoice, the plugin stores metadata about it:
+When you download an invoice, the plugin stores metadata about it:
 - Invoice number
 - Invoice date
 - Total amount

@@ -176,6 +176,12 @@
           </div>
 
           <div class="form-group">
+            <label>Short Name</label>
+            <input type="text" id="client-short-name" placeholder="e.g., TAIC">
+            <div class="small-text">Optional abbreviation for the <code>{clientShortName}</code> file name placeholder.</div>
+          </div>
+
+          <div class="form-group">
             <label>Email</label>
             <input type="email" id="client-email" placeholder="client@example.com">
           </div>
@@ -299,12 +305,30 @@
             </select>
           </div>
 
-          <button type="submit">Generate Invoice</button>
+          <div class="form-group">
+            <label>File Name Template *</label>
+            <input type="text" id="gen-file-name-template" placeholder="{invoiceNumber}-{clientName}">
+            <div class="small-text">
+              Placeholders:
+              <code>{invoiceNumber}</code>, <code>{clientName}</code>, <code>{clientShortName}</code>, <code>{businessName}</code>,
+              <code>{invoiceTitle}</code>, <code>{date}</code>, <code>{dueDate}</code>, <code>{period}</code>.
+              ".pdf" is added automatically. Saved to the client's profile.
+            </div>
+            <div class="small-text" id="gen-file-name-preview" style="margin-top: 6px; font-weight: 600;"></div>
+          </div>
+
+          <button type="submit">Preview Invoice</button>
         </form>
       </div>
 
       <div id="invoice-preview" style="display: none; margin-top: 20px;">
-        <h2>Invoice Preview</h2>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+          <h2 style="margin: 0;">Invoice Preview</h2>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="invoice-file-name" class="small-text" style="margin: 0;"></span>
+            <button type="button" id="download-invoice-pdf">⬇️ Download PDF</button>
+          </div>
+        </div>
         <div id="invoice-iframe-container"></div>
       </div>
     </div>
