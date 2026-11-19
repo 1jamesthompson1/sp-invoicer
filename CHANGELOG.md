@@ -3,6 +3,18 @@
 All notable changes to this project are documented in this file.
 
 <!-- changelog-entries -->
+## v0.0.10 (2026-11-19)
+
+Changes since v0.0.9
+
+- feat: Make release update the plugin listing (6d50ba2)
+- feat: Add dashboard (6cd9779)
+- fix: error in which bundling broke edit and delete buttons (381272e)
+- feat: add in custom invoice numbering schemes fixes #27 (f4c7a59)
+- fix: clean up plugin build pipeline (6a7d588)
+- feat: add PDF download with configurable file names (64ebfdb)
+
+
 ## v0.0.9 (2026-07-18)
 
 Changes since v0.0.8
