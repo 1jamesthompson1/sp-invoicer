@@ -21,6 +21,35 @@ Fields you can fill in:
 
 You can create multiple user details profiles (e.g. freelancing work, self employed work, business work) and assign them to different clients. This allows you to have different tax settings, bank details, and invoice titles for different clients.
 
+### Invoice numbering
+
+Each profile has a default invoice number template and starting number. The built-in default is:
+
+```
+INV-{YYYY}{MM}-{monthNumber:3}
+```
+
+This produces `INV-202611-001`, `INV-202611-002`, and so on, then resets to `001` for the next month.
+
+The template can contain fixed text and these placeholders:
+
+| Placeholder | Value |
+|-------------|-------|
+| `{number}` | Running total across all saved invoices |
+| `{yearNumber}` | Running total for the invoice's year |
+| `{monthNumber}` | Running total for the invoice's month |
+| `{random}` | Random digits (5 by default, e.g. `{random:8}`) |
+| `{year}`, `{YYYY}` | Invoice year (`2026`) |
+| `{YY}` | Two-digit invoice year (`26`) |
+| `{month}`, `{MM}` | Two-digit invoice month (`11`) |
+| `{day}`, `{DD}` | Two-digit invoice day (`19`) |
+
+Add `:N` to a counter to pad it with zeros. For example, `{number:5}` produces `00042`.
+
+**Number starts at** sets the first value used in each new counter period. Leave it at `1` for normal sequencing, or raise it to continue from invoices created in another system.
+
+> Numbering is checked against saved invoices, so previewing an invoice does not use up a number. The number is stored when the invoice is saved by printing or downloading the PDF.
+
 ## Clients
 
 Go to **Clients** and add at least one client. Each invoice is generated for a single client.
@@ -31,6 +60,7 @@ For each client you can set:
 - **Contact Details** — Email, phone, address (optional)
 - **Hourly Rate** — Required. The rate used when calculating invoice totals.
 - **User details profile** — Select which of your user details profiles to use for this client.
+- **Invoice numbering overrides** — Optional invoice number template and starting number. Leave blank to use the selected profile's settings.
 
 > Clients are stored in the plugin and synced across your devices.
 

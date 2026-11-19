@@ -74,6 +74,25 @@
       let currentInvoiceFileName = 'invoice.pdf';
       let currentInvoiceModel = null;
 
+      const DEFAULT_INVOICE_NUMBER_TEMPLATE = 'INV-{YYYY}{MM}-{monthNumber:3}';
+      const DEFAULT_INVOICE_NUMBER_START = 1;
+      const INVOICE_NUMBER_MAX_LENGTH = 100;
+      const INVOICE_NUMBER_COUNTER_TOKENS = ['number', 'yearNumber', 'monthNumber'];
+      const INVOICE_NUMBER_PLACEHOLDER_NAMES = [
+        ...INVOICE_NUMBER_COUNTER_TOKENS,
+        'random',
+        'year',
+        'month',
+        'day',
+        'YYYY',
+        'YY',
+        'MM',
+        'DD'
+      ];
+      const INVOICE_NUMBER_PLACEHOLDER_HELP = INVOICE_NUMBER_PLACEHOLDER_NAMES
+        .map(name => `{${name}}`)
+        .join(', ');
+
       function createDefaultProfile() {
         return {
           id: Date.now().toString(),
@@ -92,6 +111,8 @@
           invoiceTitle: 'Invoice',
           invoiceMessage: 'Thank you for your business!',
           fileNameTemplate: '{invoiceNumber}-{clientName}',
+          invoiceNumberTemplate: DEFAULT_INVOICE_NUMBER_TEMPLATE,
+          invoiceNumberStart: DEFAULT_INVOICE_NUMBER_START,
           roundMode: 'round',
           roundEntry: 0,
           roundMerged: 0,
@@ -116,6 +137,327 @@
         return getDefaultProfile();
       }
 
+      function normalizeInvoiceNumberStart(value) {
+        const parsed = Number(value);
+        return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_INVOICE_NUMBER_START;
+      }
+
+      // Client overrides win; otherwise fall back to the client's profile.
+      function getInvoiceNumbering(profile, client) {
+        const clientTemplate = client && typeof client.invoiceNumberTemplate === 'string'
+          ? client.invoiceNumberTemplate.trim()
+          : '';
+        const profileTemplate = profile && typeof profile.invoiceNumberTemplate === 'string' && profile.invoiceNumberTemplate.trim()
+          ? profile.invoiceNumberTemplate.trim()
+          : DEFAULT_INVOICE_NUMBER_TEMPLATE;
+
+        const hasClientStart = client
+          && client.invoiceNumberStart !== undefined
+          && client.invoiceNumberStart !== null
+          && client.invoiceNumberStart !== '';
+
+        return {
+          template: clientTemplate || profileTemplate,
+          start: normalizeInvoiceNumberStart(
+            hasClientStart ? client.invoiceNumberStart : (profile && profile.invoiceNumberStart)
+          )
+        };
+      }
+
+      function parseInvoiceNumberStartInput(value, allowBlank) {
+        const trimmed = String(value === undefined || value === null ? '' : value).trim();
+        if (!trimmed) {
+          if (allowBlank) return '';
+          return DEFAULT_INVOICE_NUMBER_START;
+        }
+        const parsed = Number(trimmed);
+        if (!Number.isInteger(parsed) || parsed < 1) {
+          throw new Error('Number start must be a whole number of 1 or more.');
+        }
+        return parsed;
+      }
+
+      function parseInvoiceNumberToken(rawToken) {
+        const token = String(rawToken || '').trim();
+        const parts = token.split(':');
+        if (parts.length > 2) {
+          throw new Error(`Invalid placeholder {${token}}: use at most one ":width".`);
+        }
+
+        const name = parts[0];
+        const widthRaw = parts.length === 2 ? parts[1].trim() : '';
+
+        if (!INVOICE_NUMBER_PLACEHOLDER_NAMES.includes(name)) {
+          throw new Error(`Unknown placeholder {${token}}. Valid placeholders: ${INVOICE_NUMBER_PLACEHOLDER_HELP}.`);
+        }
+
+        let width = null;
+        if (widthRaw) {
+          if (!/^\d+$/.test(widthRaw)) {
+            throw new Error(`Invalid width in {${token}}: use a whole number, e.g. {${name}:3}.`);
+          }
+          width = parseInt(widthRaw, 10);
+          if (width < 1 || width > 10) {
+            throw new Error(`Invalid width in {${token}}: width must be between 1 and 10.`);
+          }
+          if (!INVOICE_NUMBER_COUNTER_TOKENS.includes(name) && name !== 'random') {
+            throw new Error(`{${name}} does not support a width.`);
+          }
+        }
+
+        return { name, width };
+      }
+
+      function validateInvoiceNumberTemplate(template) {
+        if (typeof template !== 'string' || !template.trim()) {
+          throw new Error('Invoice number template is empty.');
+        }
+        if (/[\r\n]/.test(template)) {
+          throw new Error('Invoice number template must be a single line.');
+        }
+        if (template.length > INVOICE_NUMBER_MAX_LENGTH) {
+          throw new Error(`Invoice number template is too long (max ${INVOICE_NUMBER_MAX_LENGTH} characters).`);
+        }
+
+        const trimmed = template.trim();
+        const stripped = trimmed.replace(/\{[^{}]*\}/g, '');
+        if (stripped.includes('{') || stripped.includes('}')) {
+          throw new Error('Invoice number template has an unmatched brace.');
+        }
+
+        const tokens = [];
+        trimmed.replace(/\{([^{}]*)\}/g, (match, rawToken) => {
+          tokens.push(parseInvoiceNumberToken(rawToken));
+          return '';
+        });
+
+        const hasUniquePart = tokens.some(token =>
+          INVOICE_NUMBER_COUNTER_TOKENS.includes(token.name) || token.name === 'random'
+        );
+        if (!hasUniquePart) {
+          throw new Error('Invoice number template needs a unique part: {number}, {yearNumber}, {monthNumber}, or {random}.');
+        }
+
+        return tokens;
+      }
+
+      function getInvoiceNumberDateParts(invoiceDate) {
+        const parsed = typeof invoiceDate === 'string' && invoiceDate
+          ? parseDateKeyAsLocalDate(invoiceDate)
+          : null;
+        const date = parsed || new Date();
+        return {
+          year: date.getFullYear(),
+          month: date.getMonth() + 1,
+          day: date.getDate()
+        };
+      }
+
+      function getInvoiceNumberCounts(dateParts) {
+        const counts = {
+          number: 0,
+          yearNumber: 0,
+          monthNumber: 0
+        };
+
+        generatedInvoices.forEach(invoice => {
+          if (!invoice || !invoice.number) return;
+          counts.number += 1;
+
+          const invoiceDate = typeof invoice.date === 'string'
+            ? parseDateKeyAsLocalDate(invoice.date)
+            : null;
+          if (!invoiceDate || invoiceDate.getFullYear() !== dateParts.year) return;
+
+          counts.yearNumber += 1;
+          if (invoiceDate.getMonth() + 1 === dateParts.month) {
+            counts.monthNumber += 1;
+          }
+        });
+
+        return counts;
+      }
+
+      function randomDigits(length) {
+        const digits = [];
+        const cryptoObj = window.crypto;
+        if (cryptoObj && cryptoObj.getRandomValues) {
+          const buffer = new Uint32Array(length);
+          cryptoObj.getRandomValues(buffer);
+          for (let i = 0; i < length; i += 1) {
+            digits.push(String(buffer[i] % 10));
+          }
+        } else {
+          for (let i = 0; i < length; i += 1) {
+            digits.push(String(Math.floor(Math.random() * 10)));
+          }
+        }
+        return digits.join('');
+      }
+
+      function renderInvoiceNumberTemplate(template, dateParts, counters) {
+        return template.replace(/\{([^{}]*)\}/g, (match, rawToken) => {
+          const token = parseInvoiceNumberToken(rawToken);
+
+          if (INVOICE_NUMBER_COUNTER_TOKENS.includes(token.name)) {
+            const value = String(counters[token.name]);
+            return token.width ? value.padStart(token.width, '0') : value;
+          }
+
+          if (token.name === 'random') {
+            return randomDigits(token.width || 5);
+          }
+
+          if (token.name === 'year' || token.name === 'YYYY') {
+            return String(dateParts.year).padStart(4, '0');
+          }
+          if (token.name === 'YY') {
+            return String(dateParts.year).slice(-2);
+          }
+          if (token.name === 'month' || token.name === 'MM') {
+            return String(dateParts.month).padStart(2, '0');
+          }
+          if (token.name === 'day' || token.name === 'DD') {
+            return String(dateParts.day).padStart(2, '0');
+          }
+
+          throw new Error(`Unknown placeholder {${token.name}}.`);
+        });
+      }
+
+      function getTodayDateKey() {
+        const now = new Date();
+        return [
+          now.getFullYear(),
+          String(now.getMonth() + 1).padStart(2, '0'),
+          String(now.getDate()).padStart(2, '0')
+        ].join('-');
+      }
+
+      // Builds the next number without mutating state. Counter periods use the
+      // invoice date, so an invoice dated last month gets last month's sequence.
+      function buildNextInvoiceNumber(template, start, invoiceDate) {
+        const tokens = validateInvoiceNumberTemplate(template);
+        const dateParts = getInvoiceNumberDateParts(invoiceDate);
+        const counts = getInvoiceNumberCounts(dateParts);
+        const normalizedStart = normalizeInvoiceNumberStart(start);
+        const counters = {};
+        INVOICE_NUMBER_COUNTER_TOKENS.forEach(name => {
+          counters[name] = counts[name] + normalizedStart;
+        });
+
+        const existingNumbers = new Set(
+          generatedInvoices
+            .map(invoice => invoice && invoice.number ? String(invoice.number) : '')
+            .filter(Boolean)
+        );
+        const counterTokens = [...new Set(
+          tokens
+            .filter(token => INVOICE_NUMBER_COUNTER_TOKENS.includes(token.name))
+            .map(token => token.name)
+        )];
+
+        const trimmedTemplate = template.trim();
+        let lastCandidate = '';
+
+        for (let attempt = 0; attempt < 1000; attempt += 1) {
+          const candidate = renderInvoiceNumberTemplate(trimmedTemplate, dateParts, counters).trim();
+
+          if (!candidate) {
+            throw new Error('Invoice number template produced an empty number.');
+          }
+          if (candidate.length > INVOICE_NUMBER_MAX_LENGTH) {
+            throw new Error(`Invoice number is too long (${candidate.length} characters, max ${INVOICE_NUMBER_MAX_LENGTH}).`);
+          }
+          if (!existingNumbers.has(candidate)) {
+            return candidate;
+          }
+
+          lastCandidate = candidate;
+          if (counterTokens.length === 0) {
+            // A {random}-only template just rolls again until unique.
+            continue;
+          }
+          counterTokens.forEach(name => {
+            counters[name] += 1;
+          });
+        }
+
+        throw new Error(`Could not generate a unique invoice number (last tried ${lastCandidate}). Use a wider {random} or adjust the template.`);
+      }
+
+      function generateInvoiceNumber(invoiceDate, profile, client) {
+        const numbering = getInvoiceNumbering(profile, client);
+        return buildNextInvoiceNumber(numbering.template, numbering.start, invoiceDate);
+      }
+
+      function updateProfileInvoiceNumberPreview() {
+        const preview = document.getElementById('my-invoice-number-preview');
+        if (!preview) return;
+
+        const template = document.getElementById('my-invoice-number-template').value;
+        const start = document.getElementById('my-invoice-number-start').value;
+
+        try {
+          const number = buildNextInvoiceNumber(template, start, getTodayDateKey());
+          preview.textContent = `Next number (using today's date): ${number}`;
+          preview.style.color = '';
+        } catch (error) {
+          preview.textContent = error.message;
+          preview.style.color = '#c0392b';
+        }
+      }
+
+      function updateClientInvoiceNumberPreview() {
+        const preview = document.getElementById('client-invoice-number-preview');
+        if (!preview) return;
+
+        const profile = getProfileById(document.getElementById('client-profile-id').value) || getDefaultProfile();
+        const draftClient = {
+          invoiceNumberTemplate: document.getElementById('client-invoice-number-template').value,
+          invoiceNumberStart: document.getElementById('client-invoice-number-start').value
+        };
+        const numbering = getInvoiceNumbering(profile, draftClient);
+
+        try {
+          const number = buildNextInvoiceNumber(numbering.template, numbering.start, getTodayDateKey());
+          preview.textContent = `Next number (using today's date): ${number}`;
+          preview.style.color = '';
+        } catch (error) {
+          preview.textContent = error.message;
+          preview.style.color = '#c0392b';
+        }
+      }
+
+      function updateGenInvoiceNumberPreview() {
+        const preview = document.getElementById('gen-invoice-number-preview');
+        if (!preview) return;
+
+        const clientId = document.getElementById('gen-client-select').value;
+        if (!clientId) {
+          preview.textContent = 'Select a client to see the next invoice number.';
+          preview.style.color = '';
+          return;
+        }
+
+        const client = clients.find(c => c.id === clientId);
+        if (!client) {
+          preview.textContent = 'Select a client to see the next invoice number.';
+          preview.style.color = '';
+          return;
+        }
+
+        const invoiceDate = document.getElementById('gen-invoice-date').value;
+        try {
+          const number = generateInvoiceNumber(invoiceDate, getClientProfile(client), client);
+          preview.textContent = `Next invoice number: ${number}`;
+          preview.style.color = '';
+        } catch (error) {
+          preview.textContent = error.message;
+          preview.style.color = '#c0392b';
+        }
+      }
+
       // Initialize
       async function init() {
         await loadData();
@@ -130,6 +472,10 @@
         // Ensure profile ID
         profiles.forEach(p => {
           if (!p.id) p.id = Date.now().toString();
+          if (!p.invoiceNumberTemplate) p.invoiceNumberTemplate = DEFAULT_INVOICE_NUMBER_TEMPLATE;
+          if (p.invoiceNumberStart === undefined || p.invoiceNumberStart === null || p.invoiceNumberStart === '') {
+            p.invoiceNumberStart = DEFAULT_INVOICE_NUMBER_START;
+          }
         });
         
         selectedProfileId = profiles[0].id;
@@ -146,7 +492,9 @@
             hourlyRate: 100,
             taxEnabled: true,
             dueDays: null,
-            profileId: ''
+            profileId: '',
+            invoiceNumberTemplate: '',
+            invoiceNumberStart: ''
           }];
           await saveData();
         }
@@ -214,7 +562,7 @@
                     const createdDate = new Date(invoice.createdAt).toLocaleDateString();
                     return `
                       <tr>
-                        <td><strong>${invoice.number}</strong></td>
+                        <td><strong>${escapeHtml(invoice.number)}</strong></td>
                         <td>${invoice.clientName}</td>
                         <td>${new Date(invoice.date).toLocaleDateString()}</td>
                         <td>${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}</td>
@@ -244,41 +592,6 @@
 
 
       // Load data from storage
-        // Generate unique invoice number
-        function generateInvoiceNumber() {
-          const now = new Date();
-          const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const prefix = `INV-${year}${month}-`;
-
-          const existingNumbers = new Set(
-            generatedInvoices
-              .map(inv => inv.number)
-              .filter(number => number && number.startsWith(prefix))
-          );
-
-          const max = 99999;
-          const min = 0;
-          const getRandomInt = () => {
-            if (window.crypto && window.crypto.getRandomValues) {
-              const buffer = new Uint32Array(1);
-              window.crypto.getRandomValues(buffer);
-              return min + (buffer[0] % (max - min + 1));
-            }
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-          };
-
-          for (let attempt = 0; attempt < 20; attempt += 1) {
-            const randomPart = String(getRandomInt()).padStart(5, '0');
-            const candidate = `${prefix}${randomPart}`;
-            if (!existingNumbers.has(candidate)) {
-              return candidate;
-            }
-          }
-
-          return `${prefix}${String(Date.now()).slice(-5)}`;
-        }
-
         function setupPrintShortcut() {
           window.addEventListener('keydown', (event) => {
             const isPrint = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p';
@@ -325,6 +638,8 @@
                 invoiceTitle: old.invoiceTitle || 'Invoice',
                 invoiceMessage: old.invoiceMessage || 'Thank you for your business!',
                 fileNameTemplate: '{invoiceNumber}-{clientName}',
+                invoiceNumberTemplate: DEFAULT_INVOICE_NUMBER_TEMPLATE,
+                invoiceNumberStart: DEFAULT_INVOICE_NUMBER_START,
                 roundMode: old.roundMode || 'round',
                 roundEntry: old.roundEntry || 0,
                 roundMerged: old.roundMerged || 0,
@@ -332,6 +647,27 @@
                 dueDays: old.dueDays ?? 30
               }];
             }
+
+            // Backfill numbering fields for data saved before this feature.
+            profiles.forEach(profile => {
+              if (!profile.invoiceNumberTemplate) {
+                profile.invoiceNumberTemplate = DEFAULT_INVOICE_NUMBER_TEMPLATE;
+              }
+              if (profile.invoiceNumberStart === undefined
+                || profile.invoiceNumberStart === null
+                || profile.invoiceNumberStart === '') {
+                profile.invoiceNumberStart = DEFAULT_INVOICE_NUMBER_START;
+              }
+            });
+
+            clients.forEach(client => {
+              if (typeof client.invoiceNumberTemplate !== 'string') {
+                client.invoiceNumberTemplate = '';
+              }
+              if (client.invoiceNumberStart === undefined || client.invoiceNumberStart === null) {
+                client.invoiceNumberStart = '';
+              }
+            });
           }
         } catch (error) {
           console.error('Error loading data:', error);
@@ -487,6 +823,20 @@
         profile.bankDetails = document.getElementById('my-bank').value;
         profile.invoiceTitle = document.getElementById('my-invoice-title').value;
         profile.invoiceMessage = document.getElementById('my-invoice-message').value;
+
+        const invoiceNumberTemplate = document.getElementById('my-invoice-number-template').value.trim();
+        try {
+          validateInvoiceNumberTemplate(invoiceNumberTemplate);
+          profile.invoiceNumberStart = parseInvoiceNumberStartInput(
+            document.getElementById('my-invoice-number-start').value,
+            false
+          );
+        } catch (error) {
+          PluginAPI.showSnack({ msg: error.message, type: 'ERROR' });
+          return;
+        }
+        profile.invoiceNumberTemplate = invoiceNumberTemplate;
+
         profile.roundMode = document.getElementById('my-round-mode').value;
         profile.roundEntry = parseInt(document.getElementById('my-round-entry').value);
         profile.roundMerged = parseInt(document.getElementById('my-round-merged').value);
@@ -497,11 +847,18 @@
         updateProfileSelect();
         updateClientProfileSelect();
         renderMyDetails();
+        updateGenInvoiceNumberPreview();
 
         PluginAPI.showSnack({
           msg: 'Profile saved successfully',
           type: 'SUCCESS'
         });
+      });
+
+      // Live examples for the invoice number fields.
+      ['my-invoice-number-template', 'my-invoice-number-start'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.addEventListener('input', updateProfileInvoiceNumberPreview);
       });
 
       // Render my details
@@ -526,11 +883,14 @@
         document.getElementById('my-bank').value = profile.bankDetails || '';
         document.getElementById('my-invoice-title').value = profile.invoiceTitle || '';
         document.getElementById('my-invoice-message').value = profile.invoiceMessage || '';
+        document.getElementById('my-invoice-number-template').value = profile.invoiceNumberTemplate || DEFAULT_INVOICE_NUMBER_TEMPLATE;
+        document.getElementById('my-invoice-number-start').value = profile.invoiceNumberStart ?? DEFAULT_INVOICE_NUMBER_START;
         document.getElementById('my-round-mode').value = profile.roundMode || '';
         document.getElementById('my-round-entry').value = profile.roundEntry || '';
         document.getElementById('my-round-merged').value = profile.roundMerged || '';
         document.getElementById('my-round-project').value = profile.roundProject || '';
         document.getElementById('my-due-days').value = profile.dueDays ?? '';
+        updateProfileInvoiceNumberPreview();
 
         // Show preview
         document.getElementById('mydetails-preview').style.display = 'block';
@@ -562,7 +922,15 @@
           select.appendChild(option);
         });
         select.value = currentVal;
+        updateClientInvoiceNumberPreview();
       }
+
+      // Live example for the client-level numbering override.
+      ['client-invoice-number-template', 'client-invoice-number-start'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.addEventListener('input', updateClientInvoiceNumberPreview);
+      });
+      document.getElementById('client-profile-id').addEventListener('change', updateClientInvoiceNumberPreview);
 
       // Tab switching
       document.querySelectorAll('.tab').forEach(tab => {
@@ -578,6 +946,10 @@
             content.classList.remove('active');
           });
           document.getElementById(`${tabName}-tab`).classList.add('active');
+
+          if (tabName === 'generate') {
+            updateGenInvoiceNumberPreview();
+          }
         });
       });
 
@@ -592,8 +964,23 @@
           email: document.getElementById('client-email').value,
           address: document.getElementById('client-address').value,
           hourlyRate: parseFloat(document.getElementById('client-rate').value),
-          profileId: document.getElementById('client-profile-id').value || ''
+          profileId: document.getElementById('client-profile-id').value || '',
+          invoiceNumberTemplate: document.getElementById('client-invoice-number-template').value.trim(),
+          invoiceNumberStart: ''
         };
+
+        try {
+          if (client.invoiceNumberTemplate) {
+            validateInvoiceNumberTemplate(client.invoiceNumberTemplate);
+          }
+          client.invoiceNumberStart = parseInvoiceNumberStartInput(
+            document.getElementById('client-invoice-number-start').value,
+            true
+          );
+        } catch (error) {
+          PluginAPI.showSnack({ msg: error.message, type: 'ERROR' });
+          return;
+        }
 
         if (editingClientId) {
           // Update existing client
@@ -646,6 +1033,9 @@
         document.getElementById('client-rate').value = client.hourlyRate;
         updateClientProfileSelect();
         document.getElementById('client-profile-id').value = client.profileId || '';
+        document.getElementById('client-invoice-number-template').value = client.invoiceNumberTemplate || '';
+        document.getElementById('client-invoice-number-start').value = client.invoiceNumberStart ?? '';
+        updateClientInvoiceNumberPreview();
 
         document.querySelector('#client-form button[type="submit"]').textContent = 'Update Client';
         
@@ -1068,6 +1458,7 @@
           option.textContent = client.name;
           select.appendChild(option);
         });
+        updateGenInvoiceNumberPreview();
       }
 
       let periodInstancesMap = {};
@@ -1402,7 +1793,7 @@
 
       const FILE_NAME_PLACEHOLDERS = ['invoiceNumber', 'clientName', 'clientShortName', 'businessName', 'invoiceTitle', 'date', 'dueDate', 'period'];
       const FILE_NAME_EXAMPLE_VARS = {
-        invoiceNumber: 'INV-202610-00042',
+        invoiceNumber: 'INV-202610-001',
         clientName: 'Acme Corp',
         clientShortName: 'AC',
         businessName: 'Your Business',
@@ -1471,6 +1862,7 @@
         const profile = client ? getClientProfile(client) : getDefaultProfile();
         input.value = (profile && profile.fileNameTemplate) || '{invoiceNumber}-{clientName}';
         updateGenFileNamePreview();
+        updateGenInvoiceNumberPreview();
       }
 
       // Size the preview iframe to its content so the invoice flows with the
@@ -1562,9 +1954,19 @@
       document.getElementById('download-invoice-pdf').addEventListener('click', downloadInvoicePdf);
       document.getElementById('gen-file-name-template').addEventListener('input', updateGenFileNamePreview);
       document.getElementById('gen-client-select').addEventListener('change', syncGenFileNameTemplate);
+      document.getElementById('gen-invoice-date').addEventListener('input', updateGenInvoiceNumberPreview);
+      document.getElementById('gen-invoice-date').addEventListener('change', updateGenInvoiceNumberPreview);
 
       // Display invoice preview
       async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
+        const abortPreview = (message) => {
+          PluginAPI.showSnack({ msg: message, type: 'ERROR' });
+          const previewEl = document.getElementById('invoice-preview');
+          if (previewEl) previewEl.style.display = 'none';
+          const labelEl = document.getElementById('invoice-file-name');
+          if (labelEl) labelEl.textContent = '';
+        };
+
         const projectMap = {};
         projectsList.forEach(p => {
           projectMap[p.id] = p.title;
@@ -1572,7 +1974,13 @@
 
         let totalHours = 0;
         let subtotal = 0;
-        const invoiceNumber = generateInvoiceNumber();
+        let invoiceNumber;
+        try {
+          invoiceNumber = generateInvoiceNumber(invoiceDate, profile, client);
+        } catch (error) {
+          abortPreview('Invalid invoice number template: ' + error.message);
+          return;
+        }
         
         // Format dates for display
         const formatDateForDisplay = (dateStr) => {
@@ -1723,13 +2131,6 @@ __INVOICE_TEMPLATE__
         // Hard-fail on an invalid template instead of silently falling back.
         const fileNameTemplate = document.getElementById('gen-file-name-template').value;
         const clientShortName = (client.shortName || '').trim();
-        const abortPreview = (message) => {
-          PluginAPI.showSnack({ msg: message, type: 'ERROR' });
-          const previewEl = document.getElementById('invoice-preview');
-          if (previewEl) previewEl.style.display = 'none';
-          const labelEl = document.getElementById('invoice-file-name');
-          if (labelEl) labelEl.textContent = '';
-        };
         if (fileNameTemplate.includes('{clientShortName}') && !clientShortName) {
           abortPreview('This client has no Short Name. Set one in the Clients tab, or use {clientName} in the file name template.');
           return;

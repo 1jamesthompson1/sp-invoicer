@@ -2,6 +2,7 @@
 - [Installation](installation.md)
 - [Setup](setup.md)
   - [My Details](setup.md#my-details)
+  - [Invoice numbering](setup.md#invoice-numbering)
   - [Clients](setup.md#clients)
   - [Projects](setup.md#projects)
 - [Generate Invoice](generate-invoice.md)

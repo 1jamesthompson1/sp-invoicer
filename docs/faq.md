@@ -11,6 +11,12 @@ Make sure Super Productivity sync is enabled and configured. The plugin uses Sup
 ### Why can't it do X or Y?
 This is early-stage software. Please check out the [github issues page](https://github.com/1jamesthompson1/sp-invoicer/issues) to see if your feature request has been logged, or create a new issue to request it.
 
+### How do I continue invoice numbering from another system?
+Go to **My Details → Invoice Numbering** (or the client's numbering override) and raise **Number Starts At** to the first number you want to use. The counters only include invoices saved in this plugin.
+
+### Can different clients use different invoice number formats?
+Yes. Each profile has a default template, and every client can override it in **Clients → Invoice Numbering**.
+
 ## Troubleshooting
 
 In general, if you encounter a problem, please check the following and if nothing works, raise an issue on the [github issues page](https:github.com/1jamesthompson1/sp-invoicer/issues).

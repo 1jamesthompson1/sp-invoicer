@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Invoice ${invoiceNumber}</title>
+  <title>Invoice ${escapeHtml(invoiceNumber)}</title>
   <style>
     @media print {
       body { margin: 0; }
@@ -86,7 +86,7 @@
   <div class="invoice-header">
     <div>
       <div class="invoice-title">${escapeHtml(profile.invoiceTitle || 'INVOICE')}</div>
-      <div style="font-size: 14px; color: #666;">#${invoiceNumber}</div>
+      <div style="font-size: 14px; color: #666;">#${escapeHtml(invoiceNumber)}</div>
     </div>
     <div style="text-align: right;">
       <div style="font-weight: bold; font-size: 18px; margin-bottom: 5px;">${profile.businessName}</div>

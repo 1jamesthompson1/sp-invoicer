@@ -19,9 +19,31 @@ Navigate to the **Generate Invoice** tab in the plugin.
    - **Project totals only** — One line per project
    - **Main task breakdown** — Line items per top-level task
    - **Nested hierarchy** — Full parent/subtask tree
-5. **Set the file name** — Edit the **File Name Template** field (see [PDF File Name](#pdf-file-name)).
-6. **Preview Invoice** — Click **Preview Invoice** to render the invoice inline (no inner scroll box). The **Download PDF** button appears at the top-right of the preview, showing the file name it will use.
-7. **Download PDF** — Click **Download PDF** to save the invoice to your downloads folder. The PDF is text-based, so its text is selectable and searchable.
+5. **Check the invoice number** — The next number is shown under **Invoice Number**. It comes from the selected client's override, or their profile's template.
+6. **Set the file name** — Edit the **File Name Template** field (see [PDF File Name](#pdf-file-name)).
+7. **Preview Invoice** — Click **Preview Invoice** to render the invoice inline (no inner scroll box). The **Download PDF** button appears at the top-right of the preview, showing the file name it will use.
+8. **Download PDF** — Click **Download PDF** to save the invoice to your downloads folder. The PDF is text-based, so its text is selectable and searchable.
+
+## Invoice Numbering
+
+Invoice numbers are generated from a template. Set the default in **My Details → Invoice Numbering**, or override it for a specific client in **Clients → Invoice Numbering**.
+
+The default template is `INV-{YYYY}{MM}-{monthNumber:3}`, producing numbers like `INV-202611-001`. The next number is shown in the Generate Invoice form.
+
+| Placeholder | Value |
+|-------------|-------|
+| `{number}` | Running total across all saved invoices |
+| `{yearNumber}` | Running total for the invoice's year |
+| `{monthNumber}` | Running total for the invoice's month |
+| `{random}` | Random digits (5 by default, e.g. `{random:8}`) |
+| `{year}`, `{YYYY}` | Invoice year (`2026`) |
+| `{YY}` | Two-digit invoice year (`26`) |
+| `{month}`, `{MM}` | Two-digit invoice month (`11`) |
+| `{day}`, `{DD}` | Two-digit invoice day (`19`) |
+
+Counters can be padded with `:N`, for example `{number:5}` gives `00042`. Numbering is validated strictly: unknown placeholders, a template with no counter or `{random}`, or an invalid width stops the invoice from being generated.
+
+Numbers are only counted from **saved** invoices. Previewing does not consume a number; the number is stored when you print or download the PDF. Deleting a saved invoice can make its number available again.
 
 ## PDF File Name
 
@@ -29,7 +51,7 @@ The **Generate Invoice** form has a **File Name Template** field. It is pre-fill
 
 | Placeholder | Value |
 |-------------|-------|
-| `{invoiceNumber}` | e.g. `INV-202610-00042` |
+| `{invoiceNumber}` | e.g. `INV-202610-001` |
 | `{clientName}` | Client name |
 | `{clientShortName}` | Client short name (set it in the Clients tab) |
 | `{businessName}` | Your business name |
@@ -38,7 +60,7 @@ The **Generate Invoice** form has a **File Name Template** field. It is pre-fill
 | `{dueDate}` | Due date (`YYYY-MM-DD`) |
 | `{period}` | Billing period label (e.g. `October 2026`) |
 
-The default is `{invoiceNumber}-{clientName}`, which produces e.g. `INV-202610-00042-Acme-Corp.pdf`. A live example is shown under the field, and `.pdf` is added automatically.
+The default is `{invoiceNumber}-{clientName}`, which produces e.g. `INV-202610-001-Acme-Corp.pdf`. A live example is shown under the field, and `.pdf` is added automatically.
 
 Each client can have an optional **Short Name** (e.g. `TAIC`) for the `{clientShortName}` placeholder — useful when full client names are long.
 

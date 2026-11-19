@@ -115,6 +115,27 @@
             <div class="small-text">Custom message that appears at the end of your invoices</div>
           </div>
 
+          <h3 style="color: #555; margin-top: 32px; margin-bottom: 16px;">Invoice Numbering</h3>
+
+          <div class="form-group">
+            <label>Invoice Number Template *</label>
+            <input type="text" id="my-invoice-number-template" placeholder="INV-{YYYY}{MM}-{monthNumber:3}">
+            <div class="small-text">
+              Counter placeholders: <code>{number}</code> (all invoices), <code>{yearNumber}</code> (within the invoice year),
+              <code>{monthNumber}</code> (within the invoice month), <code>{random}</code> (random digits).
+              Date placeholders: <code>{year}</code>, <code>{month}</code>, <code>{day}</code>,
+              <code>{YYYY}</code>, <code>{YY}</code>, <code>{MM}</code>, <code>{DD}</code>.
+              Add <code>:N</code> to pad a number, e.g. <code>{monthNumber:3}</code> gives <code>001</code>.
+            </div>
+            <div class="small-text" id="my-invoice-number-preview" style="margin-top: 6px; font-weight: 600;"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Number Starts At *</label>
+            <input type="number" id="my-invoice-number-start" min="1" step="1" value="1">
+            <div class="small-text">First number in each new month, year, or all-time sequence. Set higher to continue from invoices made elsewhere.</div>
+          </div>
+
           <div class="form-group">
             <label>Days Until Due *</label>
             <input type="number" id="my-due-days" min="0" step="1" value="30" placeholder="e.g., 30">
@@ -204,6 +225,21 @@
             <select id="client-profile-id">
               <option value="">Use default profile</option>
             </select>
+          </div>
+
+          <h3 style="color: #555; margin-top: 24px; margin-bottom: 16px;">Invoice Numbering</h3>
+          <div class="small-text" style="margin-bottom: 12px;">Optional overrides for this client. Leave blank to use the selected profile's numbering.</div>
+
+          <div class="form-group">
+            <label>Invoice Number Template</label>
+            <input type="text" id="client-invoice-number-template" placeholder="Use profile template">
+            <div class="small-text">Same placeholders as the profile template. Example: <code>ACME-{YYYY}-{monthNumber:3}</code></div>
+            <div class="small-text" id="client-invoice-number-preview" style="margin-top: 6px; font-weight: 600;"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Number Starts At</label>
+            <input type="number" id="client-invoice-number-start" min="1" step="1" placeholder="Use profile start">
           </div>
 
           <div class="button-group">
@@ -303,6 +339,12 @@
               <option value="2" selected>Show Main Tasks</option>
               <option value="3">Show Parent Tasks + Subtasks</option>
             </select>
+          </div>
+
+          <div class="form-group">
+            <label>Invoice Number</label>
+            <div class="small-text" id="gen-invoice-number-preview" style="font-weight: 600;"></div>
+            <div class="small-text">Uses the client's numbering override, or their profile's template. Set it in My Details or Clients.</div>
           </div>
 
           <div class="form-group">
