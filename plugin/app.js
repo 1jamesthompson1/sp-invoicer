@@ -1042,6 +1042,9 @@
         // Scroll to form
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
+      // The UI is bundled as an IIFE, so handlers referenced from inline
+      // onclick attributes must be exposed on window explicitly.
+      window.editClient = editClient;
 
       // Delete client
       async function deleteClient(clientId) {
@@ -1075,6 +1078,7 @@
           });
         }
       }
+      window.deleteClient = deleteClient;
 
       // Render clients list
       function renderClients() {
@@ -1194,6 +1198,7 @@
           type: 'SUCCESS'
         });
       }
+      window.removeAssignment = removeAssignment;
 
       // Render project assignments
       function renderProjectAssignments() {
