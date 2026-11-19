@@ -73,6 +73,7 @@
       let hasPendingInvoiceSaved = false;
       let currentInvoiceFileName = 'invoice.pdf';
       let currentInvoiceModel = null;
+      let dashboardRefreshRequest = 0;
 
       const DEFAULT_INVOICE_NUMBER_TEMPLATE = 'INV-{YYYY}{MM}-{monthNumber:3}';
       const DEFAULT_INVOICE_NUMBER_START = 1;
@@ -511,6 +512,7 @@
         setDefaultInvoiceDate();
         populatePeriodInstances();
         setupPrintShortcut();
+        refreshDashboard();
       }
 
       async function finalizeInvoiceSave() {
@@ -523,6 +525,7 @@
         generatedInvoices.push(pendingInvoiceData);
         await saveData();
         renderInvoices();
+        refreshDashboard();
         hasPendingInvoiceSaved = true;
       }
           // Render all generated invoices in the Invoices tab
@@ -586,6 +589,7 @@
               generatedInvoices.splice(index, 1);
               saveData();
               renderInvoices();
+              refreshDashboard();
               PluginAPI.showSnack({ msg: 'Invoice deleted', type: 'SUCCESS' });
             }
           };
@@ -711,6 +715,483 @@
             type: 'ERROR'
           });
         }
+      }
+
+      // --- Dashboard: unbilled time -----------------------------------------
+      function formatDateKeyLocal(date) {
+        return [
+          date.getFullYear(),
+          String(date.getMonth() + 1).padStart(2, '0'),
+          String(date.getDate()).padStart(2, '0')
+        ].join('-');
+      }
+
+      function getDashboardPeriods(now = new Date()) {
+        const day = now.getDay();
+        const mondayOffset = day === 0 ? -6 : 1 - day;
+        const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+        const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6);
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        const weekLabel = `${weekStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+        return {
+          week: {
+            startKey: formatDateKeyLocal(weekStart),
+            endKey: formatDateKeyLocal(weekEnd),
+            label: weekLabel
+          },
+          month: {
+            startKey: formatDateKeyLocal(monthStart),
+            endKey: formatDateKeyLocal(monthEnd),
+            label: now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+          }
+        };
+      }
+
+      function normalizeDashboardDateKey(value) {
+        if (typeof value !== 'string') return null;
+        const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+        return match ? match[1] : null;
+      }
+
+      // Full billing period from a saved invoice, not clamped to when it was created.
+      function getInvoicePeriodRange(invoice) {
+        let startKey = normalizeDashboardDateKey(invoice.periodStart);
+        let endKey = normalizeDashboardDateKey(invoice.periodEnd);
+
+        if ((!startKey || !endKey) && typeof invoice.periodDateRange === 'string') {
+          const parts = invoice.periodDateRange.split(/\s+[-–—]\s+/);
+          if (parts.length === 2) {
+            const start = new Date(parts[0]);
+            const end = new Date(parts[1]);
+            if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+              startKey = formatDateKeyLocal(start);
+              endKey = formatDateKeyLocal(end);
+            }
+          }
+        }
+
+        if (!startKey || !endKey || endKey < startKey) {
+          return null;
+        }
+
+        return { startKey, endKey };
+      }
+
+      // Saved invoices cover their billing period only up to the moment the
+      // preview was created. Time tracked later must stay unbilled.
+      function getInvoiceCoverageRange(invoice) {
+        const range = getInvoicePeriodRange(invoice);
+        if (!range) return null;
+
+        let endKey = range.endKey;
+        const createdAt = invoice.createdAt ? new Date(invoice.createdAt) : null;
+        if (createdAt && !Number.isNaN(createdAt.getTime())) {
+          const createdAtKey = formatDateKeyLocal(createdAt);
+          if (createdAtKey < endKey) {
+            endKey = createdAtKey;
+          }
+        }
+
+        if (endKey < range.startKey) {
+          return null;
+        }
+
+        return { startKey: range.startKey, endKey };
+      }
+
+      function isDateKeyInPeriod(dateKey, period) {
+        return dateKey >= period.startKey && dateKey <= period.endKey;
+      }
+
+      function isDateKeyBilled(dateKey, ranges) {
+        return ranges.some(range => dateKey >= range.startKey && dateKey <= range.endKey);
+      }
+
+      function getTaskDailyTimeEntries(task) {
+        const entries = [];
+
+        if (task.timeSpentOnDay && typeof task.timeSpentOnDay === 'object') {
+          Object.entries(task.timeSpentOnDay).forEach(([dateKey, ms]) => {
+            const normalizedKey = normalizeDashboardDateKey(dateKey);
+            if (!normalizedKey || typeof ms !== 'number' || ms <= 0) return;
+            entries.push({ dateKey: normalizedKey, hours: ms / (1000 * 60 * 60) });
+          });
+          return entries;
+        }
+
+        if (!task.parentId && task.timeSpent > 0) {
+          const date = new Date(task.changed || task.created);
+          if (!Number.isNaN(date.getTime())) {
+            entries.push({ dateKey: formatDateKeyLocal(date), hours: task.timeSpent / (1000 * 60 * 60) });
+          }
+        }
+
+        return entries;
+      }
+
+      function formatDashboardHours(hours) {
+        return `${hours.toFixed(2)}h`;
+      }
+
+      function formatDashboardMoney(amount) {
+        return `≈ $${amount.toFixed(2)}`;
+      }
+
+      function getLatestInvoiceForClient(clientId) {
+        return generatedInvoices
+          .filter(invoice => invoice.clientId === clientId && getInvoicePeriodRange(invoice))
+          .sort((a, b) => {
+            const aRange = getInvoicePeriodRange(a);
+            const bRange = getInvoicePeriodRange(b);
+            return bRange.endKey.localeCompare(aRange.endKey)
+              || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+          })[0] || null;
+      }
+
+      function inferInvoicePeriodType(invoice) {
+        if (['weekly', 'fortnightly', 'monthly', 'yearly'].includes(invoice.periodType)) {
+          return invoice.periodType;
+        }
+        if (invoice.periodType === 'custom-days' || invoice.periodType === 'custom-range') {
+          return 'custom-range';
+        }
+
+        const range = getInvoicePeriodRange(invoice);
+        if (!range) return null;
+
+        const start = parseDateKeyAsLocalDate(range.startKey);
+        const end = parseDateKeyAsLocalDate(range.endKey);
+        if (!start || !end) return null;
+
+        const days = Math.round((end - start) / 86400000) + 1;
+        const isWholeMonth = start.getDate() === 1
+          && start.getMonth() === end.getMonth()
+          && start.getFullYear() === end.getFullYear()
+          && end.getDate() === new Date(end.getFullYear(), end.getMonth() + 1, 0).getDate();
+
+        if (isWholeMonth) return 'monthly';
+        if (start.getDay() === 1 && days === 7) return 'weekly';
+        if (start.getDay() === 1 && days === 14) return 'fortnightly';
+        if (start.getMonth() === 0 && start.getDate() === 1
+          && end.getMonth() === 11 && end.getDate() === 31) return 'yearly';
+
+        return 'custom-range';
+      }
+
+      function selectCurrentPeriod(periodType) {
+        const typeSelect = document.getElementById('gen-period-type');
+        const instanceSelect = document.getElementById('gen-period-instance');
+        typeSelect.value = periodType;
+        populatePeriodInstances();
+        if (instanceSelect.options.length === 0) return false;
+        instanceSelect.selectedIndex = 0;
+        return true;
+      }
+
+      function setGeneratePeriodForClient(clientId) {
+        const previousInvoice = getLatestInvoiceForClient(clientId);
+        const previousType = previousInvoice ? inferInvoicePeriodType(previousInvoice) : null;
+        const today = new Date();
+        const todayKey = formatDateKeyLocal(today);
+
+        // Repeat the client's previous cadence with the current period selected.
+        if (previousType && ['weekly', 'fortnightly', 'monthly', 'yearly'].includes(previousType)) {
+          if (selectCurrentPeriod(previousType)) return;
+        }
+
+        // Custom or unknown periods continue from the day after the previous
+        // invoice's coverage, so already-billed time is not included again.
+        const coverage = previousInvoice ? getInvoiceCoverageRange(previousInvoice) : null;
+        let startKey = null;
+        if (coverage) {
+          const nextDay = parseDateKeyAsLocalDate(coverage.endKey);
+          if (nextDay) {
+            nextDay.setDate(nextDay.getDate() + 1);
+            startKey = formatDateKeyLocal(nextDay);
+          }
+        }
+
+        if (startKey && startKey <= todayKey) {
+          document.getElementById('gen-period-type').value = 'custom-range';
+          populatePeriodInstances();
+          document.getElementById('gen-start-date').value = startKey;
+          document.getElementById('gen-end-date').value = todayKey;
+          return;
+        }
+
+        // No usable previous period: fall back to the current month.
+        selectCurrentPeriod('monthly');
+      }
+
+      function openInvoiceForClient(clientId) {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) {
+          PluginAPI.showSnack({ msg: 'Client not found', type: 'ERROR' });
+          return;
+        }
+
+        const clientSelect = document.getElementById('gen-client-select');
+        clientSelect.value = clientId;
+        if (clientSelect.value !== clientId) {
+          PluginAPI.showSnack({ msg: 'Could not select this client', type: 'ERROR' });
+          return;
+        }
+
+        document.getElementById('gen-invoice-date').value = formatDateKeyLocal(new Date());
+        syncGenFileNameTemplate();
+        setGeneratePeriodForClient(clientId);
+        switchTab('generate');
+
+        const form = document.getElementById('generate-invoice-form');
+        if (form) {
+          form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Submit after the tab/period updates have been applied so the
+          // existing preview flow runs exactly as if the button was clicked.
+          setTimeout(() => {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            }
+          }, 0);
+        }
+
+        PluginAPI.showSnack({
+          msg: `Preparing invoice for ${client.name}`,
+          type: 'SUCCESS'
+        });
+      }
+
+      function renderDashboardClientBreakdown(rows, totals, periods) {
+        const container = document.getElementById('dashboard-clients');
+        if (!container) return;
+
+        if (rows.length === 0) {
+          container.innerHTML = '<p class="empty-state">No tracked time on client projects this week or month.</p>';
+          return;
+        }
+
+        const periodHeader = (label, period) => `
+          <div>${label}</div>
+          <div class="small-text" style="font-weight: 400;">${period.label}</div>
+        `;
+
+        container.innerHTML = `
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th style="text-align: right;">${periodHeader('This week', periods.week)}</th>
+                <th style="text-align: right;">${periodHeader('This month', periods.month)}</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td><strong>${escapeHtml(row.client.name)}</strong></td>
+                  <td style="text-align: right;">
+                    <strong>${formatDashboardHours(row.weekUnbilled)}</strong>
+                    <div class="dashboard-money">${formatDashboardMoney(row.weekUnbilledValue)}</div>
+                    <div class="small-text">of ${formatDashboardHours(row.weekTracked)} tracked</div>
+                  </td>
+                  <td style="text-align: right;">
+                    <strong>${formatDashboardHours(row.monthUnbilled)}</strong>
+                    <div class="dashboard-money">${formatDashboardMoney(row.monthUnbilledValue)}</div>
+                    <div class="small-text">of ${formatDashboardHours(row.monthTracked)} tracked</div>
+                  </td>
+                  <td style="text-align: right;">
+                    <button type="button" class="secondary dashboard-invoice-button" data-invoice-client-id="${encodeURIComponent(row.client.id)}">Make invoice</button>
+                  </td>
+                </tr>
+              `).join('')}
+              <tr class="dashboard-total-row">
+                <td><strong>Total unbilled</strong></td>
+                <td style="text-align: right;">
+                  <strong>${formatDashboardHours(totals.weekUnbilled)}</strong>
+                  <div class="dashboard-money">${formatDashboardMoney(totals.weekUnbilledValue)}</div>
+                  <div class="small-text">of ${formatDashboardHours(totals.weekTracked)} tracked</div>
+                </td>
+                <td style="text-align: right;">
+                  <strong>${formatDashboardHours(totals.monthUnbilled)}</strong>
+                  <div class="dashboard-money">${formatDashboardMoney(totals.monthUnbilledValue)}</div>
+                  <div class="small-text">of ${formatDashboardHours(totals.monthTracked)} tracked</div>
+                </td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        `;
+      }
+
+      async function refreshDashboard() {
+        const requestId = ++dashboardRefreshRequest;
+        const weekTotal = document.getElementById('dashboard-week-total');
+        const monthTotal = document.getElementById('dashboard-month-total');
+        const weekValue = document.getElementById('dashboard-week-value');
+        const monthValue = document.getElementById('dashboard-month-value');
+        const weekDetail = document.getElementById('dashboard-week-detail');
+        const monthDetail = document.getElementById('dashboard-month-detail');
+        const clientsContainer = document.getElementById('dashboard-clients');
+        if (!weekTotal || !monthTotal || !weekValue || !monthValue || !weekDetail || !monthDetail || !clientsContainer) return;
+
+        const assignedClientIds = new Set(Object.values(projectAssignments));
+        if (assignedClientIds.size === 0) {
+          weekTotal.textContent = '0.00h';
+          monthTotal.textContent = '0.00h';
+          weekValue.textContent = formatDashboardMoney(0);
+          monthValue.textContent = formatDashboardMoney(0);
+          weekDetail.textContent = 'No projects assigned yet';
+          monthDetail.textContent = 'No projects assigned yet';
+          clientsContainer.innerHTML = '<p class="empty-state">Assign projects to clients in the Project Assignment tab to see unbilled time.</p>';
+          return;
+        }
+
+        weekTotal.textContent = '…';
+        monthTotal.textContent = '…';
+        weekValue.textContent = '…';
+        monthValue.textContent = '…';
+        weekDetail.textContent = 'Loading tracked time…';
+        monthDetail.textContent = 'Loading tracked time…';
+        clientsContainer.innerHTML = '<p class="empty-state">Loading tracked time…</p>';
+
+        let tasks = [];
+        let archivedTasks = [];
+        try {
+          [tasks, archivedTasks] = await Promise.all([
+            PluginAPI.getTasks(),
+            PluginAPI.getArchivedTasks()
+          ]);
+        } catch (error) {
+          console.error('Error loading dashboard tasks:', error);
+          if (requestId !== dashboardRefreshRequest) return;
+          weekTotal.textContent = '—';
+          monthTotal.textContent = '—';
+          weekValue.textContent = '—';
+          monthValue.textContent = '—';
+          weekDetail.textContent = 'Could not load tracked time';
+          monthDetail.textContent = 'Could not load tracked time';
+          clientsContainer.innerHTML = '<p class="empty-state">Could not load tracked time. Try refreshing.</p>';
+          return;
+        }
+
+        if (requestId !== dashboardRefreshRequest) return;
+
+        const periods = getDashboardPeriods();
+        const allTasks = [...tasks, ...archivedTasks];
+        const parentTaskIdsWithChildren = new Set(
+          allTasks
+            .filter(task => !!task.parentId)
+            .map(task => task.parentId)
+        );
+
+        const rangesByClient = {};
+        generatedInvoices.forEach(invoice => {
+          if (!invoice.clientId) return;
+          const range = getInvoiceCoverageRange(invoice);
+          if (!range) return;
+          if (!rangesByClient[invoice.clientId]) {
+            rangesByClient[invoice.clientId] = [];
+          }
+          rangesByClient[invoice.clientId].push(range);
+        });
+
+        const statsByClient = new Map();
+        clients.forEach(client => {
+          statsByClient.set(client.id, {
+            weekTracked: 0,
+            weekUnbilled: 0,
+            weekUnbilledValue: 0,
+            monthTracked: 0,
+            monthUnbilled: 0,
+            monthUnbilledValue: 0
+          });
+        });
+        const clientsById = new Map(clients.map(client => [client.id, client]));
+
+        allTasks.forEach(task => {
+          const clientId = projectAssignments[task.projectId];
+          const client = clientId ? clientsById.get(clientId) : null;
+          const stats = client ? statsByClient.get(client.id) : null;
+          if (!stats || parentTaskIdsWithChildren.has(task.id)) return;
+
+          const rate = Number(projectRates[task.projectId] || client.hourlyRate) || 0;
+          const billedRanges = rangesByClient[clientId] || [];
+          getTaskDailyTimeEntries(task).forEach(entry => {
+            const inWeek = isDateKeyInPeriod(entry.dateKey, periods.week);
+            const inMonth = isDateKeyInPeriod(entry.dateKey, periods.month);
+            if (!inWeek && !inMonth) return;
+
+            const billed = isDateKeyBilled(entry.dateKey, billedRanges);
+            if (inWeek) {
+              stats.weekTracked += entry.hours;
+              if (!billed) {
+                stats.weekUnbilled += entry.hours;
+                stats.weekUnbilledValue += entry.hours * rate;
+              }
+            }
+            if (inMonth) {
+              stats.monthTracked += entry.hours;
+              if (!billed) {
+                stats.monthUnbilled += entry.hours;
+                stats.monthUnbilledValue += entry.hours * rate;
+              }
+            }
+          });
+        });
+
+        const totals = {
+          weekTracked: 0,
+          weekUnbilled: 0,
+          weekUnbilledValue: 0,
+          monthTracked: 0,
+          monthUnbilled: 0,
+          monthUnbilledValue: 0
+        };
+        const rows = [];
+
+        clients.forEach(client => {
+          const stats = statsByClient.get(client.id);
+          if (!stats) return;
+          if (stats.weekTracked <= 0.005 && stats.monthTracked <= 0.005) return;
+
+          rows.push({ client, ...stats });
+          totals.weekTracked += stats.weekTracked;
+          totals.weekUnbilled += stats.weekUnbilled;
+          totals.weekUnbilledValue += stats.weekUnbilledValue;
+          totals.monthTracked += stats.monthTracked;
+          totals.monthUnbilled += stats.monthUnbilled;
+          totals.monthUnbilledValue += stats.monthUnbilledValue;
+        });
+
+        rows.sort((a, b) =>
+          b.monthUnbilled - a.monthUnbilled
+          || b.weekUnbilled - a.weekUnbilled
+          || a.client.name.localeCompare(b.client.name)
+        );
+
+        weekTotal.textContent = formatDashboardHours(totals.weekUnbilled);
+        monthTotal.textContent = formatDashboardHours(totals.monthUnbilled);
+        weekValue.textContent = formatDashboardMoney(totals.weekUnbilledValue);
+        monthValue.textContent = formatDashboardMoney(totals.monthUnbilledValue);
+        weekDetail.textContent = `${formatDashboardHours(totals.weekTracked)} tracked · ${formatDashboardHours(Math.max(0, totals.weekTracked - totals.weekUnbilled))} billed`;
+        monthDetail.textContent = `${formatDashboardHours(totals.monthTracked)} tracked · ${formatDashboardHours(Math.max(0, totals.monthTracked - totals.monthUnbilled))} billed`;
+
+        renderDashboardClientBreakdown(rows, totals, periods);
+      }
+
+      document.getElementById('dashboard-refresh').addEventListener('click', refreshDashboard);
+
+      const dashboardClientsContainer = document.getElementById('dashboard-clients');
+      if (dashboardClientsContainer) {
+        dashboardClientsContainer.addEventListener('click', (event) => {
+          const button = event.target.closest('button[data-invoice-client-id]');
+          if (!button) return;
+          openInvoiceForClient(decodeURIComponent(button.dataset.invoiceClientId));
+        });
       }
 
       // Update profile select dropdown
@@ -933,23 +1414,29 @@
       document.getElementById('client-profile-id').addEventListener('change', updateClientInvoiceNumberPreview);
 
       // Tab switching
+      function switchTab(tabName) {
+        const tab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+        if (!tab) return;
+
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+
+        if (tabName === 'generate') {
+          updateGenInvoiceNumberPreview();
+        }
+        if (tabName === 'dashboard') {
+          refreshDashboard();
+        }
+      }
+
       document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
-          const tabName = tab.dataset.tab;
-          
-          // Update tab buttons
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          
-          // Update tab content
-          document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-          });
-          document.getElementById(`${tabName}-tab`).classList.add('active');
-
-          if (tabName === 'generate') {
-            updateGenInvoiceNumberPreview();
-          }
+          switchTab(tab.dataset.tab);
         });
       });
 
@@ -1005,6 +1492,7 @@
         updateClientSelect();
         updateGenerateClientSelect();
         updateClientProfileSelect();
+        refreshDashboard();
       });
 
       // Cancel edit button
@@ -1071,6 +1559,7 @@
           renderProjectAssignments();
           updateClientSelect();
           updateGenerateClientSelect();
+          refreshDashboard();
 
           PluginAPI.showSnack({
             msg: 'Client deleted',
@@ -1167,6 +1656,7 @@
 
         renderProjectAssignments();
         renderClients();
+        refreshDashboard();
 
         PluginAPI.showSnack({
           msg: 'Project assigned successfully',
@@ -1192,6 +1682,7 @@
         await saveData();
         renderProjectAssignments();
         renderClients();
+        refreshDashboard();
 
         PluginAPI.showSnack({
           msg: 'Assignment removed',
@@ -1699,6 +2190,9 @@
             periodDateRange = instanceData.dateRange;
           }
 
+          const periodStartKey = formatDateKeyLocal(cutoffDate);
+          const periodEndKey = formatDateKeyLocal(endDate);
+
           // Calculate hours for client projects
           const projectHours = {};
           const projectTasks = {};
@@ -1771,7 +2265,7 @@
           // Apply rounding config to preview function
           const dueDays = profileForClient.dueDays;
 
-          displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays);
+          displayInvoicePreview(profileForClient, selectedClient, projects, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays, periodStartKey, periodEndKey, periodType);
 
         } catch (error) {
           console.error('Error generating invoice:', error);
@@ -1963,7 +2457,7 @@
       document.getElementById('gen-invoice-date').addEventListener('change', updateGenInvoiceNumberPreview);
 
       // Display invoice preview
-      async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays = 0) {
+      async function displayInvoicePreview(profile, client, projectsList, projectHours, projectTasks, invoiceDate, periodLabel, periodDateRange, itemizationLevel, allTasksById, roundingConfig, dueDays = 0, periodStartKey = null, periodEndKey = null, periodType = null) {
         const abortPreview = (message) => {
           PluginAPI.showSnack({ msg: message, type: 'ERROR' });
           const previewEl = document.getElementById('invoice-preview');
@@ -2172,6 +2666,9 @@ __INVOICE_TEMPLATE__
           dueDate: dueDate,
           period: periodLabel,
           periodDateRange: periodDateRange,
+          periodStart: periodStartKey,
+          periodEnd: periodEndKey,
+          periodType: periodType,
           total: total,
           createdAt: new Date().toISOString()
         };

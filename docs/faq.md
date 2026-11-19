@@ -17,6 +17,15 @@ Go to **My Details → Invoice Numbering** (or the client's numbering override) 
 ### Can different clients use different invoice number formats?
 Yes. Each profile has a default template, and every client can override it in **Clients → Invoice Numbering**.
 
+### How is unbilled time calculated?
+The dashboard counts time tracked on projects assigned to clients during the current week and month. Time is considered billed when its date falls inside the billing period of a saved invoice for that client. An invoice only covers its period up to the moment it was created, so time tracked after saving stays unbilled. Click **Refresh** on the dashboard to reload tracked time.
+
+### How is the dashboard money value calculated?
+It multiplies each project's unbilled hours by that project's rate override, or the client's hourly rate when there is no override. It is an estimate — invoice rounding settings are only applied when an invoice is generated.
+
+### What does the dashboard's Make invoice button do?
+It opens the Generate Invoice tab with that client selected, prefills the period, refreshes the invoice number/file name previews, and automatically submits the form so the invoice preview appears. The period type follows the client's most recent invoice — monthly, weekly, fortnightly, or yearly — with the current period selected. If the previous invoice used a custom period, the new custom range starts the day after the last billed day and ends today.
+
 ## Troubleshooting
 
 In general, if you encounter a problem, please check the following and if nothing works, raise an issue on the [github issues page](https:github.com/1jamesthompson1/sp-invoicer/issues).

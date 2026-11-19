@@ -73,6 +73,7 @@ When you download an invoice, the plugin stores metadata about it:
 - Invoice date
 - Total amount
 - Billing period
+- Billing period start and end dates (used by the Dashboard to calculate unbilled time)
 
 > The PDF itself is **not** stored in the plugin — save your PDFs externally. The metadata is kept for reference and syncs across devices.
 

@@ -287,6 +287,95 @@ select#dark-mode-toggle option {
   margin-bottom: 20px;
 }
 
+/* Dashboard */
+.dashboard-header {
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+#dashboard-clients {
+  overflow-x: auto;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dashboard-stat {
+  margin-bottom: 0;
+}
+
+.dashboard-stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-stat-value {
+  font-size: 2.2em;
+  font-weight: 700;
+  color: #4caf50;
+  line-height: 1.15;
+  margin: 6px 0;
+}
+
+.dashboard-stat-money {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.dashboard-money {
+  font-weight: 600;
+  color: #2e7d32;
+  margin-top: 2px;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #333;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 10px;
+}
+
+.dashboard-table thead tr {
+  background: #f5f5f5;
+  border-bottom: 2px solid #ddd;
+}
+
+.dashboard-table thead th {
+  color: #333;
+  text-align: left;
+}
+
+.dashboard-table tbody tr {
+  border-bottom: 1px solid #eee;
+}
+
+.dashboard-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.dashboard-total-row {
+  border-top: 2px solid #ddd;
+}
+
+.dashboard-invoice-button {
+  white-space: nowrap;
+}
+
 /* Invoice preview - always light (like paper) */
 #invoice-preview,
 #invoice-iframe-container,
@@ -500,6 +589,52 @@ body.dark-mode .empty-state {
 html.dark-mode .small-text,
 body.dark-mode .small-text {
   color: #666;
+}
+
+html.dark-mode .dashboard-stat-label,
+body.dark-mode .dashboard-stat-label {
+  color: #aaa;
+}
+
+html.dark-mode .dashboard-stat-money,
+body.dark-mode .dashboard-stat-money {
+  color: #e0e0e0;
+}
+
+html.dark-mode .dashboard-money,
+body.dark-mode .dashboard-money {
+  color: #81c784;
+}
+
+html.dark-mode .dashboard-table,
+body.dark-mode .dashboard-table {
+  color: #e0e0e0;
+}
+
+html.dark-mode .dashboard-table thead tr,
+body.dark-mode .dashboard-table thead tr {
+  background: #23272a;
+  border-bottom-color: #444;
+}
+
+html.dark-mode .dashboard-table thead th,
+body.dark-mode .dashboard-table thead th {
+  color: #e0e0e0;
+}
+
+html.dark-mode .dashboard-table tbody tr,
+body.dark-mode .dashboard-table tbody tr {
+  border-bottom-color: #333;
+}
+
+html.dark-mode .dashboard-table tbody td,
+body.dark-mode .dashboard-table tbody td {
+  color: #e0e0e0;
+}
+
+html.dark-mode .dashboard-total-row,
+body.dark-mode .dashboard-total-row {
+  border-top-color: #444;
 }
 
 html.dark-mode button,

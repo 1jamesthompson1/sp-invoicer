@@ -12,11 +12,51 @@
     </div>
 
     <div class="tabs">
-      <button class="tab active" data-tab="generate">Generate Invoice</button>
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="generate">Generate Invoice</button>
       <button class="tab" data-tab="invoices">Invoices</button>
       <button class="tab" data-tab="mydetails">My Details</button>
       <button class="tab" data-tab="clients">Clients</button>
       <button class="tab" data-tab="projects">Project Assignment</button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div class="tab-content active" id="dashboard-tab">
+      <div class="section-header dashboard-header">
+        <div>
+          <h2 style="margin: 0 0 4px;">Unbilled Time</h2>
+          <p class="intro-text" style="margin: 0;">Tracked time on client projects that has not been included in a saved invoice.</p>
+        </div>
+        <button type="button" class="secondary" id="dashboard-refresh">Refresh</button>
+      </div>
+
+      <div class="dashboard-stats">
+        <div class="card dashboard-stat">
+          <div class="dashboard-stat-label">This week</div>
+          <div class="dashboard-stat-value" id="dashboard-week-total">…</div>
+          <div class="dashboard-stat-money" id="dashboard-week-value">…</div>
+          <div class="small-text" id="dashboard-week-detail">Loading tracked time…</div>
+        </div>
+        <div class="card dashboard-stat">
+          <div class="dashboard-stat-label">This month</div>
+          <div class="dashboard-stat-value" id="dashboard-month-total">…</div>
+          <div class="dashboard-stat-money" id="dashboard-month-value">…</div>
+          <div class="small-text" id="dashboard-month-detail">Loading tracked time…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top: 0;">By client</h2>
+        <div id="dashboard-clients">
+          <p class="empty-state">Loading tracked time…</p>
+        </div>
+        <p class="small-text" style="margin-top: 16px;">
+          Hour values use tracked time. Money values are estimates using each project's rate override or the client's
+          hourly rate; invoice rounding is applied only when an invoice is generated. Only time tracked on projects
+          assigned to clients is counted. A saved invoice covers its billing period up to the date it was created, so
+          time tracked after saving remains unbilled.
+        </p>
+      </div>
     </div>
 
     <!-- My Details Tab -->
@@ -285,7 +325,7 @@
     </div>
 
     <!-- Generate Invoice Tab -->
-    <div class="tab-content active" id="generate-tab">
+    <div class="tab-content" id="generate-tab">
       <div class="card">
         <h2>Generate Invoice</h2>
         <p class="intro-text" style="margin-bottom: 20px;">Create and preview an invoice for a client.</p>

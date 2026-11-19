@@ -18,6 +18,7 @@ Generate professional client invoices directly from your tracked time in [Super 
 - Three itemization levels: project totals, main task breakdown, or nested subtask hierarchy
 - Automatic merging of tasks with identical names
 - Template-based invoice numbers with per-profile and per-client schemes (month/year/global counters or random)
+- Dashboard of unbilled time and estimated value for the current week and month, broken down by client
 - Download invoices as PDF — automatically named per invoice and client
 - Store invoice metadata for reference
 - Sync invoice details, client data, and project assignments across devices
