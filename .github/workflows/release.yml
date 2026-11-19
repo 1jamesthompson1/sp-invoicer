@@ -37,11 +37,49 @@ jobs:
       - name: Build plugin package
         run: npm run build
 
+      - name: Validate release version
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./package.json').version")
+          MANIFEST_VERSION=$(node -p "require('./plugin/manifest.json').version")
+
+          if [ "$VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "ERROR: package.json version ($VERSION) does not match plugin/manifest.json version ($MANIFEST_VERSION)." >&2
+            exit 1
+          fi
+
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ] && [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "ERROR: tag $GITHUB_REF_NAME does not match package.json version v$VERSION." >&2
+            exit 1
+          fi
+
+      - name: Collect release metadata
+        id: release_meta
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          ASSET="invoice-maker-$TAG.zip"
+          ZIP="dist/$ASSET"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ERROR: expected build asset $ZIP was not created." >&2
+            exit 1
+          fi
+
+          SHA256=$(sha256sum "$ZIP" | awk '{print $1}')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
       - name: Extract release notes from changelog
         run: |
           set -euo pipefail
 
-          CURRENT_TAG="${GITHUB_REF_NAME}"
+          CURRENT_TAG="${{ steps.release_meta.outputs.tag }}"
 
           if [ ! -f CHANGELOG.md ]; then
             echo "ERROR: CHANGELOG.md is missing. Release notes must be authored in CHANGELOG.md before tagging ${CURRENT_TAG}." >&2
@@ -71,8 +109,55 @@ jobs:
       - name: Create GitHub Release and upload ZIP
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.zip
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.tag }}
+          files: dist/invoice-maker-${{ steps.release_meta.outputs.tag }}.zip
           body_path: release-notes.md
           generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify release asset digest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.release_meta.outputs.tag }}
+          ASSET: ${{ steps.release_meta.outputs.asset }}
+          SHA256: ${{ steps.release_meta.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+
+          DIGEST=""
+          for attempt in 1 2 3 4 5; do
+            DIGEST=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+              --jq ".assets[] | select(.name == \"${ASSET}\") | .digest" 2>/dev/null || true)
+            if [ "$DIGEST" = "sha256:${SHA256}" ]; then
+              echo "Release asset digest matches the local SHA-256."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "ERROR: release asset ${ASSET} digest (${DIGEST:-missing}) does not match local SHA-256 (${SHA256})." >&2
+          exit 1
+
+      - name: Open community plugin listing pull request
+        env:
+          GH_TOKEN: ${{ secrets.SP_COMMUNITY_PLUGIN_TOKEN }}
+          FORK_REPOSITORY: ${{ vars.SP_COMMUNITY_PLUGIN_FORK }}
+          VERSION: ${{ steps.release_meta.outputs.version }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.release_meta.outputs.tag }}
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.release_meta.outputs.tag }}/${{ steps.release_meta.outputs.asset }}
+          SHA256: ${{ steps.release_meta.outputs.sha256 }}
+          UPSTREAM_REPOSITORY: super-productivity/super-productivity
+          CATALOG_BASE_BRANCH: master
+          CATALOG_PATH: src/assets/community-plugins.json
+          PLUGIN_ID: invoicer
+          PLUGIN_NAME: Invoicer
+          PLUGIN_URL: https://github.com/${{ github.repository }}
+        run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::warning title=Community plugin PR skipped::Set the SP_COMMUNITY_PLUGIN_TOKEN repository secret to open the Install/Update listing PR automatically."
+            exit 0
+          fi
+
+          node scripts/open-community-plugin-pr.js

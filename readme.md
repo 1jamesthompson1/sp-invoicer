@@ -46,7 +46,20 @@ npm version patch  # or minor / major
 git push origin main --follow-tags
 ```
 
-This creates a version commit + tag, then GitHub Actions builds and publishes the release.
+This creates a version commit + tag. GitHub Actions then:
+
+- Builds the plugin ZIP and publishes the GitHub release.
+- Opens or updates a PR against [`super-productivity/super-productivity`](https://github.com/super-productivity/super-productivity) bumping the `invoicer` entry in `src/assets/community-plugins.json` with the new `version`, `downloadUrl`, and `sha256`. That file powers the in-app **Community Plugins → Install/Update** buttons.
+- The [awesome-super-productivity](https://github.com/super-productivity/awesome-super-productivity) list is generated from that catalog file, so no separate PR to the awesome list is needed.
+
+The catalog ships inside Super Productivity, so the new Install/Update entry reaches users with the next app release that includes the merged listing.
+
+To enable the catalog PR, add a repository secret named `SP_COMMUNITY_PLUGIN_TOKEN`:
+
+- A classic PAT with `public_repo`, or a fine-grained token that can create forks and push branches.
+- The token owner’s fork `<owner>/super-productivity` is created automatically if missing. To use a different fork, set the repository variable `SP_COMMUNITY_PLUGIN_FORK` to `owner/repo`.
+
+If the secret is not set, the release still publishes and the catalog PR step is skipped with a workflow warning.
 
 ## License
 
